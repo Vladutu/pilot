@@ -18,7 +18,7 @@ class MetadataFetcher(
     private val ytMusicBase: String = "https://music.youtube.com",
     private val oembedBase: String = "https://www.youtube.com/oembed",
 ) {
-    suspend fun fetch(share: ClassifiedShare): Meta? = withContext(Dispatchers.IO) {
+    suspend fun fetch(share: ClassifiedShare.YtMusic): Meta? = withContext(Dispatchers.IO) {
         when (share) {
             is ClassifiedShare.Song -> fetchSong(share.id)
             is ClassifiedShare.Playlist -> scrapeOg("$ytMusicBase/playlist?list=${share.id}")
@@ -47,7 +47,7 @@ class MetadataFetcher(
     }
 
     /** Convenience: fetch metadata, download image, write the result to [store]. */
-    suspend fun refresh(share: ClassifiedShare, store: CatalogStore) {
+    suspend fun refresh(share: ClassifiedShare.YtMusic, store: CatalogStore) {
         val meta = fetch(share) ?: return
         val title = meta.title?.takeIf { it.isNotBlank() }
         val imageFile = meta.imageUrl?.let { downloadImage(it, share.form, share.id) }

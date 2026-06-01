@@ -111,7 +111,7 @@ fun CatalogScreen(
                         scope.launch {
                             try {
                                 visible.filter { it.imagePath == null }.forEach { e ->
-                                    val share: ClassifiedShare? = when (e.form) {
+                                    val share: ClassifiedShare.YtMusic? = when (e.form) {
                                         Form.PLAYLIST -> ClassifiedShare.Playlist(e.id, e.title)
                                         Form.SONG -> ClassifiedShare.Song(e.id, e.title)
                                         Form.DESTINATION -> null  // no metadata refresh for destinations
