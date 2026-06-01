@@ -20,6 +20,7 @@ class MainActivity : ComponentActivity() {
                     CatalogScreen(
                         publisher = app.ntfyPublisher,
                         store = app.catalogStore,
+                        metadataFetcher = app.metadataFetcher,
                     )
                 }
             }
