@@ -35,4 +35,14 @@ sealed interface IngestResult {
     data class PublishFailed(val title: String) : IngestResult {
         override val toastText: String = "Send failed"
     }
+
+    /** Catalog save failed; publish still succeeded — the navigation went out but the tile won't appear. */
+    data class SaveFailed(val title: String) : IngestResult {
+        override val toastText: String = "Save failed"
+    }
+
+    /** Catalog save AND publish both failed. */
+    data class SaveAndPublishFailed(val title: String) : IngestResult {
+        override val toastText: String = "Save and send failed"
+    }
 }

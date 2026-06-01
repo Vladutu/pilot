@@ -68,14 +68,20 @@ class DestinationPipeline(
             imagePath = null,
             savedAt = clock(),
         )
-        catalogStore.upsert(entry)
+        val saveOk = try {
+            catalogStore.upsert(entry)
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "catalog save failed", e)
+            false
+        }
 
         return try {
             publisher.publishWaze(wazeUrl)
-            IngestResult.Success(title)
+            if (saveOk) IngestResult.Success(title) else IngestResult.SaveFailed(title)
         } catch (e: NtfyPublishException) {
             Log.w(TAG, "publish failed", e)
-            IngestResult.PublishFailed(title)
+            if (saveOk) IngestResult.PublishFailed(title) else IngestResult.SaveAndPublishFailed(title)
         }
     }
 

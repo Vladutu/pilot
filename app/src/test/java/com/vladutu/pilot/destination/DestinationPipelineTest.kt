@@ -22,6 +22,7 @@ class DestinationPipelineTest {
     private lateinit var converterServer: MockWebServer
     private val savedEntries = mutableListOf<CatalogEntry>()
     private lateinit var publisher: FakePublisher
+    private lateinit var catalogStore: FakeCatalogStore
 
     private val wazeUrl = "https://ul.waze.com/ul?ll=52.5,13.4&navigate=yes"
 
@@ -30,6 +31,7 @@ class DestinationPipelineTest {
         converterServer = MockWebServer().apply { start() }
         savedEntries.clear()
         publisher = FakePublisher()
+        catalogStore = FakeCatalogStore(savedEntries)
     }
 
     @After
@@ -39,7 +41,7 @@ class DestinationPipelineTest {
 
     private fun newPipeline(): DestinationPipeline = DestinationPipeline(
         converter = MapsToWazeConverter(OkHttpClient(), converterServer.url("/").toString()),
-        catalogStore = FakeCatalogStore(savedEntries),
+        catalogStore = catalogStore,
         publisher = publisher,
         clock = { 1_700_000_000_000L },
     )
@@ -173,8 +175,48 @@ class DestinationPipelineTest {
         assertEquals(savedEntries[0].title, title)
     }
 
+    @Test
+    fun ingest_saveFails_publishStillProceeds() = runBlocking {
+        converterServer.enqueue(MockResponse().setResponseCode(302).setHeader("Location", wazeUrl))
+        catalogStore.failNextUpsert = true
+
+        val result = newPipeline().ingest(
+            urlText = "https://www.google.com/maps/place/X",
+            manualTitle = "Park",
+            subject = null,
+        )
+
+        assertTrue("expected SaveFailed, got $result", result is IngestResult.SaveFailed)
+        assertEquals("Park", (result as IngestResult.SaveFailed).title)
+        assertEquals(0, savedEntries.size)
+        assertEquals(listOf(wazeUrl), publisher.publishedWaze)
+    }
+
+    @Test
+    fun ingest_saveAndPublishBothFail_returnsSaveAndPublishFailed() = runBlocking {
+        converterServer.enqueue(MockResponse().setResponseCode(302).setHeader("Location", wazeUrl))
+        catalogStore.failNextUpsert = true
+        publisher.failNextPublish = true
+
+        val result = newPipeline().ingest(
+            urlText = "https://www.google.com/maps/place/X",
+            manualTitle = "Park",
+            subject = null,
+        )
+
+        assertTrue(result is IngestResult.SaveAndPublishFailed)
+        assertEquals("Park", (result as IngestResult.SaveAndPublishFailed).title)
+        assertEquals(0, savedEntries.size)
+        assertTrue(publisher.publishedWaze.isEmpty())
+    }
+
     private class FakeCatalogStore(val backing: MutableList<CatalogEntry>) : CatalogStore(FAKE_DATASTORE) {
+        var failNextUpsert: Boolean = false
         override suspend fun upsert(entry: CatalogEntry) {
+            if (failNextUpsert) {
+                failNextUpsert = false
+                throw RuntimeException("simulated save failure")
+            }
             backing.removeAll { it.form == entry.form && it.id == entry.id }
             backing.add(entry)
         }
