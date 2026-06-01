@@ -9,13 +9,13 @@ import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-class CatalogStore(private val dataStore: DataStore<Preferences>) {
+open class CatalogStore(private val dataStore: DataStore<Preferences>) {
 
     val entries: Flow<List<CatalogEntry>> = dataStore.data.map { prefs ->
         decode(prefs[KEY]).sortedByDescending { it.savedAt }
     }
 
-    suspend fun upsert(entry: CatalogEntry) = mutate { current ->
+    open suspend fun upsert(entry: CatalogEntry) = mutate { current ->
         current.filterNot { it.form == entry.form && it.id == entry.id } + entry
     }
 

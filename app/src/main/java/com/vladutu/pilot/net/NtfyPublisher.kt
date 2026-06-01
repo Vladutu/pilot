@@ -12,7 +12,7 @@ import java.io.IOException
 
 class NtfyPublishException(message: String, cause: Throwable? = null) : IOException(message, cause)
 
-class NtfyPublisher(
+open class NtfyPublisher(
     private val client: OkHttpClient,
     private val base: String,
     private val topic: String,
@@ -20,7 +20,7 @@ class NtfyPublisher(
 ) {
     private val json = "application/json".toMediaType()
 
-    suspend fun publishYtMusic(form: Form, id: String) = withContext(Dispatchers.IO) {
+    open suspend fun publishYtMusic(form: Form, id: String) = withContext(Dispatchers.IO) {
         val payload = JSONObject().apply {
             put("v", 1)
             put("ts", clock())
@@ -42,7 +42,7 @@ class NtfyPublisher(
         }
     }
 
-    suspend fun publishWaze(url: String) = withContext(Dispatchers.IO) {
+    open suspend fun publishWaze(url: String) = withContext(Dispatchers.IO) {
         val payload = JSONObject().apply {
             put("v", 1)
             put("ts", clock())
