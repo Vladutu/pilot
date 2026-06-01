@@ -83,6 +83,67 @@ class DestinationPipelineTest {
     }
 
     @Test
+    fun ingest_ytMusicSongUrl_savesAndPublishes() = runBlocking {
+        val result = newPipeline().ingest(
+            urlText = "https://music.youtube.com/watch?v=abc123",
+            manualTitle = "My Song",
+            subject = null,
+        )
+
+        assertTrue("expected Success, got $result", result is IngestResult.Success)
+        assertEquals("My Song", (result as IngestResult.Success).title)
+        assertEquals(1, savedEntries.size)
+        assertEquals(Form.SONG, savedEntries[0].form)
+        assertEquals("abc123", savedEntries[0].id)
+        assertEquals("My Song", savedEntries[0].title)
+        assertEquals(listOf(Form.SONG to "abc123"), publisher.publishedYtMusic)
+    }
+
+    @Test
+    fun ingest_ytMusicPlaylistUrl_savesAndPublishes() = runBlocking {
+        val result = newPipeline().ingest(
+            urlText = "https://music.youtube.com/playlist?list=PL123",
+            manualTitle = null,
+            subject = "Workout Mix",
+        )
+
+        assertTrue(result is IngestResult.Success)
+        assertEquals("Workout Mix", (result as IngestResult.Success).title)
+        assertEquals(1, savedEntries.size)
+        assertEquals(Form.PLAYLIST, savedEntries[0].form)
+        assertEquals("PL123", savedEntries[0].id)
+        assertEquals(listOf(Form.PLAYLIST to "PL123"), publisher.publishedYtMusic)
+    }
+
+    @Test
+    fun ingest_ytMusicNoTitleAnywhere_fallsBackToUntitledPlusId() = runBlocking {
+        val result = newPipeline().ingest(
+            urlText = "https://music.youtube.com/watch?v=xyz",
+            manualTitle = null,
+            subject = null,
+        )
+
+        assertTrue(result is IngestResult.Success)
+        assertEquals("Untitled xyz", (result as IngestResult.Success).title)
+        assertEquals("Untitled xyz", savedEntries[0].title)
+    }
+
+    @Test
+    fun ingest_ytMusicPublishFails_entryStillSaved() = runBlocking {
+        publisher.failNextPublish = true
+
+        val result = newPipeline().ingest(
+            urlText = "https://music.youtube.com/watch?v=abc",
+            manualTitle = "Song",
+            subject = null,
+        )
+
+        assertTrue("expected PublishFailed, got $result", result is IngestResult.PublishFailed)
+        assertEquals("Song", (result as IngestResult.PublishFailed).title)
+        assertEquals(1, savedEntries.size)
+    }
+
+    @Test
     fun ingest_unrecognizedUrl_returnsNotARecognizedLink() = runBlocking {
         val result = newPipeline().ingest(urlText = "https://example.com/foo", manualTitle = null, subject = null)
         assertEquals(IngestResult.NotARecognizedLink, result)
@@ -237,6 +298,7 @@ class DestinationPipelineTest {
         topic = "fake",
     ) {
         val publishedWaze = mutableListOf<String>()
+        val publishedYtMusic = mutableListOf<Pair<Form, String>>()
         var failNextPublish = false
 
         override suspend fun publishWaze(url: String) {
@@ -245,6 +307,14 @@ class DestinationPipelineTest {
                 throw NtfyPublishException("simulated publish failure")
             }
             publishedWaze.add(url)
+        }
+
+        override suspend fun publishYtMusic(form: Form, id: String) {
+            if (failNextPublish) {
+                failNextPublish = false
+                throw NtfyPublishException("simulated publish failure")
+            }
+            publishedYtMusic.add(form to id)
         }
     }
 }

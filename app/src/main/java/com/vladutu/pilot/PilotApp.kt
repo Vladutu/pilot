@@ -42,6 +42,8 @@ class PilotApp : Application() {
             converter = mapsToWazeConverter,
             catalogStore = catalogStore,
             publisher = ntfyPublisher,
+            metadataFetcher = metadataFetcher,
+            backgroundScope = applicationScope,
         )
     }
 }

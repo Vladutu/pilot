@@ -2,7 +2,7 @@ package com.vladutu.pilot.destination
 
 /**
  * Outcome of [DestinationPipeline.ingest]. Carries the exact toast string so callers
- * (ShareReceiverActivity, AddDestinationDialog) don't duplicate copy.
+ * (ShareReceiverActivity, AddUrlDialog) don't duplicate copy.
  */
 sealed interface IngestResult {
     val toastText: String
@@ -11,9 +11,9 @@ sealed interface IngestResult {
         override val toastText: String = "Sent: $title"
     }
 
-    /** The URL isn't recognized as Maps or Waze. */
+    /** The URL isn't recognized as YT Music, Maps, or Waze. */
     data object NotARecognizedLink : IngestResult {
-        override val toastText: String = "Not a Maps or Waze link"
+        override val toastText: String = "Not a recognized link"
     }
 
     /** A Waze URL was provided, but its host isn't on the allowlist. */

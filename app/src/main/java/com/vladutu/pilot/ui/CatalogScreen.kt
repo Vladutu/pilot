@@ -80,10 +80,13 @@ fun CatalogScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         floatingActionButton = {
-            if (currentForm == Form.DESTINATION) {
-                FloatingActionButton(onClick = { showAddDialog = true }) {
-                    Icon(Icons.Default.Add, contentDescription = "Add destination")
-                }
+            val cd = when (currentForm) {
+                Form.PLAYLIST -> "Add playlist"
+                Form.SONG -> "Add song"
+                Form.DESTINATION -> "Add destination"
+            }
+            FloatingActionButton(onClick = { showAddDialog = true }) {
+                Icon(Icons.Default.Add, contentDescription = cd)
             }
         },
     ) { padding ->
@@ -199,7 +202,8 @@ fun CatalogScreen(
         }
 
         if (showAddDialog) {
-            AddDestinationDialog(
+            AddUrlDialog(
+                activeForm = currentForm,
                 onSubmit = { urlText, title ->
                     showAddDialog = false
                     scope.launch {
@@ -216,8 +220,8 @@ fun CatalogScreen(
 @Composable
 private fun EmptyState(form: Form) {
     val text = when (form) {
-        Form.PLAYLIST -> "Share a playlist from YT Music to get started"
-        Form.SONG -> "Share a song from YT Music to get started"
+        Form.PLAYLIST -> "Share a playlist from YT Music or tap + to paste a URL"
+        Form.SONG -> "Share a song from YT Music or tap + to paste a URL"
         Form.DESTINATION -> "Share a Google Maps link or tap + to add a destination"
     }
     Box(

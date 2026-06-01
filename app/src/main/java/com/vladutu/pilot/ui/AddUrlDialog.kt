@@ -15,24 +15,38 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.vladutu.pilot.catalog.Form
 
 @Composable
-fun AddDestinationDialog(
+fun AddUrlDialog(
+    activeForm: Form,
     onSubmit: (urlText: String, title: String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var urlText by remember { mutableStateOf("") }
     var titleText by remember { mutableStateOf("") }
 
+    val urlLabel = when (activeForm) {
+        Form.PLAYLIST, Form.SONG -> "YouTube Music URL"
+        Form.DESTINATION -> "Google Maps or Waze URL"
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add destination") },
+        title = {
+            val title = when (activeForm) {
+                Form.PLAYLIST -> "Add playlist"
+                Form.SONG -> "Add song"
+                Form.DESTINATION -> "Add destination"
+            }
+            Text(title)
+        },
         text = {
             Column {
                 OutlinedTextField(
                     value = urlText,
                     onValueChange = { urlText = it },
-                    label = { Text("Google Maps or Waze URL") },
+                    label = { Text(urlLabel) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
