@@ -42,7 +42,11 @@ class NtfyPublisherTest {
         val recorded = server.takeRequest()
         assertEquals("POST", recorded.method)
         assertEquals("/test-topic", recorded.path)
-        assertEquals("application/json", recorded.getHeader("Content-Type"))
+        // OkHttp appends "; charset=utf-8" when building a string body, so we
+        // check the prefix rather than the exact value.
+        assertTrue(
+            recorded.getHeader("Content-Type")?.startsWith("application/json") == true
+        )
 
         val body = JSONObject(recorded.body.readUtf8())
         assertEquals(1, body.getInt("v"))
