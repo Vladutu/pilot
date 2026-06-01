@@ -126,4 +126,64 @@ class UrlClassifierTest {
         )
         assertEquals("Bachata Romantica", r!!.provisionalTitle)
     }
+
+    @Test
+    fun classifyUrl_returnsMapsShare_forGooglePlaceUrl() {
+        val result = UrlClassifier.classifyUrl(
+            text = "Brandenburg Gate\nhttps://www.google.com/maps/place/Brandenburg+Gate/@52.5162,13.3777,17z/",
+            subject = "Brandenburg Gate",
+        )
+        assertTrue(result is ClassifiedShare.MapsShare)
+        val maps = result as ClassifiedShare.MapsShare
+        assertEquals("https://www.google.com/maps/place/Brandenburg+Gate/@52.5162,13.3777,17z/", maps.rawUrl)
+        assertEquals("Brandenburg Gate", maps.provisionalTitle)
+    }
+
+    @Test
+    fun classifyUrl_returnsMapsShare_forShortLink() {
+        val result = UrlClassifier.classifyUrl(
+            text = "https://maps.app.goo.gl/JN5w7N5BvCcrcVuS9",
+            subject = null,
+        )
+        assertTrue(result is ClassifiedShare.MapsShare)
+    }
+
+    @Test
+    fun classifyUrl_returnsMapsShare_forGooGlMaps() {
+        val result = UrlClassifier.classifyUrl(
+            text = "https://goo.gl/maps/abc123",
+            subject = null,
+        )
+        assertTrue(result is ClassifiedShare.MapsShare)
+    }
+
+    @Test
+    fun classifyUrl_returnsWazeShare_forUlWazeUrl() {
+        val result = UrlClassifier.classifyUrl(
+            text = "https://ul.waze.com/ul?ll=52.5162%2C13.3777&navigate=yes",
+            subject = "Home",
+        )
+        assertTrue(result is ClassifiedShare.WazeShare)
+        val waze = result as ClassifiedShare.WazeShare
+        assertEquals("https://ul.waze.com/ul?ll=52.5162%2C13.3777&navigate=yes", waze.url)
+        assertEquals("Home", waze.provisionalTitle)
+    }
+
+    @Test
+    fun classifyUrl_returnsWazeShare_forWazeComUrl() {
+        val result = UrlClassifier.classifyUrl(
+            text = "https://waze.com/ul?ll=52.5,13.4",
+            subject = null,
+        )
+        assertTrue(result is ClassifiedShare.WazeShare)
+    }
+
+    @Test
+    fun classifyUrl_returnsNull_forUnknownHost() {
+        val result = UrlClassifier.classifyUrl(
+            text = "https://example.com/something",
+            subject = null,
+        )
+        assertNull(result)
+    }
 }

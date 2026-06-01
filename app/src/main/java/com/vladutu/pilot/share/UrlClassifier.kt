@@ -6,35 +6,47 @@ object UrlClassifier {
 
     private val URL_REGEX = Regex("""https?://\S+""")
     private val YT_HOSTS = setOf("music.youtube.com", "www.youtube.com", "youtube.com", "m.youtube.com", "youtu.be")
+    private val MAPS_HOSTS = setOf("maps.google.com", "www.google.com", "google.com", "goo.gl", "maps.app.goo.gl")
+    private val WAZE_HOSTS = setOf("ul.waze.com", "waze.com", "www.waze.com")
 
-    /**
-     * Pure-Kotlin classification entry point. Tests target this directly to avoid
-     * needing a real Android Intent.
-     */
     fun classifyUrl(text: String, subject: String?): ClassifiedShare? {
         val match = URL_REGEX.find(text) ?: return null
         val urlString = match.value
         val parsed = runCatching { java.net.URI(urlString) }.getOrNull() ?: return null
         val host = parsed.host ?: return null
-        if (host !in YT_HOSTS) return null
 
         val path = parsed.path ?: ""
-        val query = (parsed.rawQuery ?: "").parseQuery()
-
         val provisionalTitle = subject?.takeIf { it.isNotBlank() }?.trim()
             ?: text.replace(urlString, "").trim().takeIf { it.isNotBlank() }
 
+        // Waze: pasted/shared Waze deep link
+        if (host in WAZE_HOSTS) {
+            return ClassifiedShare.WazeShare(url = urlString, provisionalTitle = provisionalTitle)
+        }
+
+        // Maps: any Google Maps URL (long, short, or the dedicated maps.app.goo.gl)
+        if (host == "maps.app.goo.gl" || host == "maps.google.com") {
+            return ClassifiedShare.MapsShare(rawUrl = urlString, provisionalTitle = provisionalTitle)
+        }
+        if (host in setOf("google.com", "www.google.com") && path.startsWith("/maps")) {
+            return ClassifiedShare.MapsShare(rawUrl = urlString, provisionalTitle = provisionalTitle)
+        }
+        if (host == "goo.gl" && path.startsWith("/maps")) {
+            return ClassifiedShare.MapsShare(rawUrl = urlString, provisionalTitle = provisionalTitle)
+        }
+
+        // YT Music: existing flow, unchanged.
+        if (host !in YT_HOSTS) return null
+        val query = (parsed.rawQuery ?: "").parseQuery()
+
         return when {
-            // youtu.be short links: path is the video id with a leading slash.
             host == "youtu.be" -> {
                 val id = path.trimStart('/').substringBefore('/').takeIf { it.isNotBlank() } ?: return null
                 ClassifiedShare.Song(id = id, provisionalTitle = provisionalTitle)
             }
-            // /watch?v=... — when both v and list are present, song wins.
             path.endsWith("/watch") && query["v"] != null -> {
                 ClassifiedShare.Song(id = query.getValue("v"), provisionalTitle = provisionalTitle)
             }
-            // /playlist?list=...
             path.endsWith("/playlist") && query["list"] != null -> {
                 ClassifiedShare.Playlist(id = query.getValue("list"), provisionalTitle = provisionalTitle)
             }
