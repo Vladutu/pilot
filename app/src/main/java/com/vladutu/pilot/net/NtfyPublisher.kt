@@ -41,4 +41,25 @@ class NtfyPublisher(
             }
         }
     }
+
+    suspend fun publishWaze(url: String) = withContext(Dispatchers.IO) {
+        val payload = JSONObject().apply {
+            put("v", 1)
+            put("ts", clock())
+            put("cmd", "waze")
+            put("url", url)
+        }.toString()
+
+        val req = Request.Builder()
+            .url("$base/$topic")
+            .header("Title", "Copilot")
+            .post(payload.toRequestBody(json))
+            .build()
+
+        client.newCall(req).execute().use { resp ->
+            if (!resp.isSuccessful) {
+                throw NtfyPublishException("ntfy returned HTTP ${resp.code}")
+            }
+        }
+    }
 }

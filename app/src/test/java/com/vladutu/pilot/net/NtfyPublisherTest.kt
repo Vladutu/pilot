@@ -8,6 +8,7 @@ import okhttp3.mockwebserver.MockWebServer
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -80,5 +81,31 @@ class NtfyPublisherTest {
 
         val body = JSONObject(server.takeRequest().body.readUtf8())
         assertTrue("ts must be positive", body.getLong("ts") > 0)
+    }
+
+    @Test
+    fun `publishWaze_postsCorrectEnvelope`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val wazePublisher = NtfyPublisher(
+            client = OkHttpClient(),
+            base = server.url("").toString().trimEnd('/'),
+            topic = "test-topic",
+            clock = { 1748779200L },
+        )
+
+        wazePublisher.publishWaze("https://ul.waze.com/ul?ll=52.5,13.4&navigate=yes")
+
+        val recorded = server.takeRequest()
+        assertEquals("POST", recorded.method)
+        assertEquals("/test-topic", recorded.path)
+
+        val bodyJson = JSONObject(recorded.body.readUtf8())
+        assertEquals(1, bodyJson.getInt("v"))
+        assertEquals(1748779200L, bodyJson.getLong("ts"))
+        assertEquals("waze", bodyJson.getString("cmd"))
+        assertEquals("https://ul.waze.com/ul?ll=52.5,13.4&navigate=yes", bodyJson.getString("url"))
+        assertFalse(bodyJson.has("form"))
+        assertFalse(bodyJson.has("id"))
     }
 }
