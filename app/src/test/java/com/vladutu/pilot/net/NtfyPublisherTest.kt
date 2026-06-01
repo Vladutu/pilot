@@ -1,5 +1,6 @@
 package com.vladutu.pilot.net
 
+import com.vladutu.pilot.catalog.Form
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
@@ -34,16 +35,14 @@ class NtfyPublisherTest {
     }
 
     @Test
-    fun `publishYtMusicPlaylist posts expected JSON body`() = runTest {
+    fun `publishYtMusic with playlist form posts expected JSON body`() = runTest {
         server.enqueue(MockResponse().setResponseCode(200))
 
-        publisher.publishYtMusicPlaylist("PLabc123")
+        publisher.publishYtMusic(Form.PLAYLIST, "PLabc123")
 
         val recorded = server.takeRequest()
         assertEquals("POST", recorded.method)
         assertEquals("/test-topic", recorded.path)
-        // OkHttp appends "; charset=utf-8" when building a string body, so we
-        // check the prefix rather than the exact value.
         assertTrue(
             recorded.getHeader("Content-Type")?.startsWith("application/json") == true
         )
@@ -56,16 +55,28 @@ class NtfyPublisherTest {
         assertEquals("PLabc123", body.getString("id"))
     }
 
+    @Test
+    fun `publishYtMusic with song form posts form=song`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        publisher.publishYtMusic(Form.SONG, "dQw4w9WgXcQ")
+
+        val body = JSONObject(server.takeRequest().body.readUtf8())
+        assertEquals("ytmusic", body.getString("cmd"))
+        assertEquals("song", body.getString("form"))
+        assertEquals("dQw4w9WgXcQ", body.getString("id"))
+    }
+
     @Test(expected = NtfyPublishException::class)
-    fun `publishYtMusicPlaylist throws on non-2xx response`() = runTest {
+    fun `publishYtMusic throws on non-2xx response`() = runTest {
         server.enqueue(MockResponse().setResponseCode(500))
-        publisher.publishYtMusicPlaylist("PLabc123")
+        publisher.publishYtMusic(Form.PLAYLIST, "PLabc123")
     }
 
     @Test
     fun `clock supplies ts in unix seconds`() = runTest {
         server.enqueue(MockResponse().setResponseCode(200))
-        publisher.publishYtMusicPlaylist("PLxyz")
+        publisher.publishYtMusic(Form.PLAYLIST, "PLxyz")
 
         val body = JSONObject(server.takeRequest().body.readUtf8())
         assertTrue("ts must be positive", body.getLong("ts") > 0)

@@ -1,5 +1,6 @@
 package com.vladutu.pilot.net
 
+import com.vladutu.pilot.catalog.Form
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -19,13 +20,13 @@ class NtfyPublisher(
 ) {
     private val json = "application/json".toMediaType()
 
-    suspend fun publishYtMusicPlaylist(listId: String) = withContext(Dispatchers.IO) {
+    suspend fun publishYtMusic(form: Form, id: String) = withContext(Dispatchers.IO) {
         val payload = JSONObject().apply {
             put("v", 1)
             put("ts", clock())
             put("cmd", "ytmusic")
-            put("form", "playlist")
-            put("id", listId)
+            put("form", form.wire)
+            put("id", id)
         }.toString()
 
         val req = Request.Builder()

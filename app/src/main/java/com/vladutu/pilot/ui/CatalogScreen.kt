@@ -43,7 +43,7 @@ fun CatalogScreen(publisher: NtfyPublisher) {
                         busy[entry.ytListId] = true
                         scope.launch {
                             try {
-                                publisher.publishYtMusicPlaylist(entry.ytListId)
+                                publisher.publishYtMusic(com.vladutu.pilot.catalog.Form.PLAYLIST, entry.ytListId)
                                 snackbar.showSnackbar("Sent: ${entry.label}")
                             } catch (e: Exception) {
                                 snackbar.showSnackbar("Failed — check connection")
