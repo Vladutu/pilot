@@ -1,6 +1,7 @@
 package com.vladutu.pilot.share
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -16,11 +17,22 @@ class ShareReceiverActivity : Activity() {
 
         val share = UrlClassifier.classify(intent)
         if (share == null) {
-            Toast.makeText(this, "Not a YouTube link", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Not a recognized link", Toast.LENGTH_SHORT).show()
             finish()
             return
         }
 
+        val app = application as PilotApp
+
+        when (share) {
+            is ClassifiedShare.YtMusic -> handleYtMusic(app, share)
+            is ClassifiedShare.MapsShare, is ClassifiedShare.WazeShare -> handleDestination(app, intent)
+        }
+
+        finish()
+    }
+
+    private fun handleYtMusic(app: PilotApp, share: ClassifiedShare.YtMusic) {
         val entry = CatalogEntry(
             form = share.form,
             id = share.id,
@@ -28,8 +40,6 @@ class ShareReceiverActivity : Activity() {
             imagePath = null,
             savedAt = System.currentTimeMillis(),
         )
-
-        val app = application as PilotApp
 
         app.applicationScope.launch { app.catalogStore.upsert(entry) }
         app.applicationScope.launch {
@@ -49,14 +59,26 @@ class ShareReceiverActivity : Activity() {
         }
 
         Toast.makeText(this, "Saved: ${entry.title}", Toast.LENGTH_SHORT).show()
-        finish()
     }
 
-    /** Toast from app context — Activity is already finishing when async failures land. */
+    private fun handleDestination(app: PilotApp, intent: Intent) {
+        val urlText = intent.getStringExtra(Intent.EXTRA_TEXT) ?: return
+        val subject = intent.getStringExtra(Intent.EXTRA_SUBJECT)
+
+        app.applicationScope.launch {
+            val result = app.destinationPipeline.ingest(
+                urlText = urlText,
+                manualTitle = null,
+                subject = subject,
+            )
+            showToastFromAppContext(result.toastText)
+        }
+        Toast.makeText(this, "Sending...", Toast.LENGTH_SHORT).show()
+    }
+
     private fun showToastFromAppContext(text: String) {
         val app = application as PilotApp
         app.applicationScope.launch {
-            // Toasts must run on the main thread.
             android.os.Handler(mainLooper).post {
                 Toast.makeText(app, text, Toast.LENGTH_SHORT).show()
             }
