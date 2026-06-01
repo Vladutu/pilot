@@ -1,4 +1,4 @@
-package be.doccle.pilot.catalog
+package com.vladutu.pilot.catalog
 
 data class CatalogEntry(
     val label: String,

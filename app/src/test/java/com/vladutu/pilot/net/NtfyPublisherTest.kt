@@ -1,4 +1,4 @@
-package be.doccle.pilot.net
+package com.vladutu.pilot.net
 
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient

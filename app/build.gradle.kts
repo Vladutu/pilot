@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "be.doccle.pilot"
+    namespace = "com.vladutu.pilot"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "be.doccle.pilot"
+        applicationId = "com.vladutu.pilot"
         minSdk = 29
         targetSdk = 34
         versionCode = 1

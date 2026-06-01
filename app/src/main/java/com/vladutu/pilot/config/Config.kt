@@ -1,4 +1,4 @@
-package be.doccle.pilot.config
+package com.vladutu.pilot.config
 
 object Config {
     const val NTFY_BASE: String = "https://ntfy.sh"

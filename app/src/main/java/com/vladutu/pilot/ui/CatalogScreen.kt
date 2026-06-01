@@ -1,4 +1,4 @@
-package be.doccle.pilot.ui
+package com.vladutu.pilot.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -16,9 +16,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import be.doccle.pilot.catalog.CATALOG
-import be.doccle.pilot.catalog.CatalogEntry
-import be.doccle.pilot.net.NtfyPublisher
+import com.vladutu.pilot.catalog.CATALOG
+import com.vladutu.pilot.catalog.CatalogEntry
+import com.vladutu.pilot.net.NtfyPublisher
 import kotlinx.coroutines.launch
 
 @Composable

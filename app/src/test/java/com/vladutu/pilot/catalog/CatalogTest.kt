@@ -1,4 +1,4 @@
-package be.doccle.pilot.catalog
+package com.vladutu.pilot.catalog
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
