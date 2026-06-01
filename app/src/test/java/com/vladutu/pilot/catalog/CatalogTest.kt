@@ -7,11 +7,8 @@ import org.junit.Test
 class CatalogTest {
 
     @Test
-    fun `catalog has at least three entries`() {
-        assertTrue(
-            "expected at least 3 entries, got ${CATALOG.size}",
-            CATALOG.size >= 3,
-        )
+    fun `catalog is non-empty`() {
+        assertTrue("expected at least 1 entry, got ${CATALOG.size}", CATALOG.size >= 1)
     }
 
     @Test

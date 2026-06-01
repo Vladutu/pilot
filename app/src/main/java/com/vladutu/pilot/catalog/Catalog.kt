@@ -5,11 +5,7 @@ data class CatalogEntry(
     val ytListId: String,
 )
 
-// Replace the placeholder ids with real YouTube Music playlist ids.
-// To get one: open a playlist in YT Music → Share → Copy link → extract
-// the part after `list=`. Strip any trailing `&si=...` tracking suffix.
 val CATALOG: List<CatalogEntry> = listOf(
-    CatalogEntry(label = "Driving rock",   ytListId = "PLREPLACE_WITH_REAL_ID_1"),
-    CatalogEntry(label = "Chill jazz",     ytListId = "PLREPLACE_WITH_REAL_ID_2"),
-    CatalogEntry(label = "Morning coffee", ytListId = "PLREPLACE_WITH_REAL_ID_3"),
+    CatalogEntry(label = "Bachata", ytListId = "PLtQnabPiV7-c43mBxlEBnKDXQDqsHCPtx"),
+    CatalogEntry(label = "Kizomba", ytListId = "PLtQnabPiV7-eeFBOJjFexpeImIXASsZjH"),
 )
