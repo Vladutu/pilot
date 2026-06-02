@@ -36,7 +36,7 @@ class NtfyPublisherTest {
     }
 
     @Test
-    fun `publishYtMusic with playlist form posts expected JSON body`() = runTest {
+    fun `publishYtMusic with playlist form posts v2 url with shuffle`() = runTest {
         server.enqueue(MockResponse().setResponseCode(200))
 
         publisher.publishYtMusic(Form.PLAYLIST, "PLabc123")
@@ -49,23 +49,32 @@ class NtfyPublisherTest {
         )
 
         val body = JSONObject(recorded.body.readUtf8())
-        assertEquals(1, body.getInt("v"))
+        assertEquals(2, body.getInt("v"))
         assertEquals(1717250000L, body.getLong("ts"))
         assertEquals("ytmusic", body.getString("cmd"))
-        assertEquals("playlist", body.getString("form"))
-        assertEquals("PLabc123", body.getString("id"))
+        assertEquals(
+            "https://music.youtube.com/watch?list=PLabc123&shuffle=1",
+            body.getString("url"),
+        )
+        assertFalse(body.has("form"))
+        assertFalse(body.has("id"))
     }
 
     @Test
-    fun `publishYtMusic with song form posts form=song`() = runTest {
+    fun `publishYtMusic with song form posts v2 url with video id`() = runTest {
         server.enqueue(MockResponse().setResponseCode(200))
 
         publisher.publishYtMusic(Form.SONG, "dQw4w9WgXcQ")
 
         val body = JSONObject(server.takeRequest().body.readUtf8())
+        assertEquals(2, body.getInt("v"))
         assertEquals("ytmusic", body.getString("cmd"))
-        assertEquals("song", body.getString("form"))
-        assertEquals("dQw4w9WgXcQ", body.getString("id"))
+        assertEquals(
+            "https://music.youtube.com/watch?v=dQw4w9WgXcQ",
+            body.getString("url"),
+        )
+        assertFalse(body.has("form"))
+        assertFalse(body.has("id"))
     }
 
     @Test(expected = NtfyPublishException::class)
@@ -84,7 +93,7 @@ class NtfyPublisherTest {
     }
 
     @Test
-    fun `publishWaze_postsCorrectEnvelope`() = runTest {
+    fun `publishWaze posts v2 envelope with url`() = runTest {
         server.enqueue(MockResponse().setResponseCode(200))
 
         val wazePublisher = NtfyPublisher(
@@ -101,7 +110,7 @@ class NtfyPublisherTest {
         assertEquals("/test-topic", recorded.path)
 
         val bodyJson = JSONObject(recorded.body.readUtf8())
-        assertEquals(1, bodyJson.getInt("v"))
+        assertEquals(2, bodyJson.getInt("v"))
         assertEquals(1748779200L, bodyJson.getLong("ts"))
         assertEquals("waze", bodyJson.getString("cmd"))
         assertEquals("https://ul.waze.com/ul?ll=52.5,13.4&navigate=yes", bodyJson.getString("url"))

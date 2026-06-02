@@ -20,13 +20,20 @@ open class NtfyPublisher(
 ) {
     private val json = "application/json".toMediaType()
 
-    open suspend fun publishYtMusic(form: Form, id: String) = withContext(Dispatchers.IO) {
+    open suspend fun publishYtMusic(form: Form, id: String) {
+        postEnvelope(cmd = "ytmusic", url = ytMusicUrl(form, id))
+    }
+
+    open suspend fun publishWaze(url: String) {
+        postEnvelope(cmd = "waze", url = url)
+    }
+
+    private suspend fun postEnvelope(cmd: String, url: String) = withContext(Dispatchers.IO) {
         val payload = JSONObject().apply {
-            put("v", 1)
+            put("v", SCHEMA_VERSION)
             put("ts", clock())
-            put("cmd", "ytmusic")
-            put("form", form.wire)
-            put("id", id)
+            put("cmd", cmd)
+            put("url", url)
         }.toString()
 
         val req = Request.Builder()
@@ -42,24 +49,15 @@ open class NtfyPublisher(
         }
     }
 
-    open suspend fun publishWaze(url: String) = withContext(Dispatchers.IO) {
-        val payload = JSONObject().apply {
-            put("v", 1)
-            put("ts", clock())
-            put("cmd", "waze")
-            put("url", url)
-        }.toString()
+    companion object {
+        private const val SCHEMA_VERSION = 2
 
-        val req = Request.Builder()
-            .url("$base/$topic")
-            .header("Title", "Copilot")
-            .post(payload.toRequestBody(json))
-            .build()
-
-        client.newCall(req).execute().use { resp ->
-            if (!resp.isSuccessful) {
-                throw NtfyPublishException("ntfy returned HTTP ${resp.code}")
-            }
+        fun ytMusicUrl(form: Form, id: String): String = when (form) {
+            Form.PLAYLIST -> "https://music.youtube.com/watch?list=$id&shuffle=1"
+            Form.SONG -> "https://music.youtube.com/watch?v=$id"
+            Form.DESTINATION -> throw IllegalArgumentException(
+                "DESTINATION is not a YouTube Music form; use publishWaze",
+            )
         }
     }
 }
