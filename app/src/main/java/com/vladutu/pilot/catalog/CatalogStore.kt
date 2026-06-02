@@ -9,7 +9,10 @@ import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-open class CatalogStore(private val dataStore: DataStore<Preferences>) {
+open class CatalogStore(
+    private val dataStore: DataStore<Preferences>,
+    private val clock: () -> Long = { System.currentTimeMillis() },
+) {
 
     val entries: Flow<List<CatalogEntry>> = dataStore.data.map { prefs ->
         decode(prefs[KEY]).sortedByDescending { it.savedAt }
@@ -27,6 +30,12 @@ open class CatalogStore(private val dataStore: DataStore<Preferences>) {
 
     suspend fun rename(form: Form, id: String, newTitle: String) = mutate { current ->
         current.map { if (it.form == form && it.id == id) it.copy(title = newTitle) else it }
+    }
+
+    /** Bump savedAt to "now" so a successful tap re-promotes the entry to the top of its tab. */
+    suspend fun touch(form: Form, id: String) = mutate { current ->
+        val now = clock()
+        current.map { if (it.form == form && it.id == id) it.copy(savedAt = now) else it }
     }
 
     suspend fun delete(form: Form, id: String) = mutate { current ->

@@ -25,6 +25,7 @@ class CatalogStoreTest {
     private lateinit var dataStore: DataStore<Preferences>
     private lateinit var store: CatalogStore
     private val scope = TestScope(UnconfinedTestDispatcher())
+    private var fakeNow: Long = 0L
 
     @Before
     fun setUp() {
@@ -32,7 +33,7 @@ class CatalogStoreTest {
             scope = scope,
             produceFile = { File(tmp.root, "catalog.preferences_pb") },
         )
-        store = CatalogStore(dataStore)
+        store = CatalogStore(dataStore, clock = { fakeNow })
     }
 
     @After
@@ -115,6 +116,44 @@ class CatalogStoreTest {
         assertEquals("new", e.title)
         assertEquals("/cache/a.jpg", e.imagePath)
         assertEquals(100L, e.savedAt)
+    }
+
+    @Test
+    fun `touch bumps savedAt and re-sorts the entry to the top`() = runTest {
+        store.upsert(entry(Form.PLAYLIST, "old", "old", savedAt = 100L))
+        store.upsert(entry(Form.PLAYLIST, "mid", "mid", savedAt = 200L))
+        store.upsert(entry(Form.PLAYLIST, "new", "new", savedAt = 300L))
+
+        fakeNow = 500L
+        store.touch(Form.PLAYLIST, "old")
+
+        val all = store.entries.first()
+        assertEquals(listOf("old", "new", "mid"), all.map { it.id })
+        assertEquals(500L, all.first().savedAt)
+    }
+
+    @Test
+    fun `touch on missing entry is a no-op`() = runTest {
+        store.upsert(entry(Form.PLAYLIST, "a", "A", savedAt = 100L))
+        fakeNow = 500L
+        store.touch(Form.SONG, "a") // wrong form
+        store.touch(Form.PLAYLIST, "missing")
+
+        val e = store.entries.first().single()
+        assertEquals(100L, e.savedAt)
+    }
+
+    @Test
+    fun `touch only affects the matching form-id pair`() = runTest {
+        store.upsert(entry(Form.PLAYLIST, "x", "Plist", savedAt = 100L))
+        store.upsert(entry(Form.SONG, "x", "Song", savedAt = 200L))
+
+        fakeNow = 500L
+        store.touch(Form.PLAYLIST, "x")
+
+        val byForm = store.entries.first().associateBy { it.form }
+        assertEquals(500L, byForm[Form.PLAYLIST]!!.savedAt)
+        assertEquals(200L, byForm[Form.SONG]!!.savedAt)
     }
 
     @Test

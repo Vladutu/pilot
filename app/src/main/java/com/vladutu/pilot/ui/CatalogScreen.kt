@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
@@ -74,6 +75,7 @@ fun CatalogScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     val pullState = rememberPullToRefreshState()
     var refreshing by remember { mutableStateOf(false) }
+    val gridState = rememberLazyGridState()
 
     val currentForm = TABS[selectedTab].first
 
@@ -129,6 +131,7 @@ fun CatalogScreen(
                     modifier = Modifier.fillMaxSize(),
                 ) {
                     LazyVerticalGrid(
+                        state = gridState,
                         columns = GridCells.Fixed(2),
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -151,6 +154,10 @@ fun CatalogScreen(
                                                 } else {
                                                     publisher.publishYtMusic(entry.form, entry.id, title = entry.title, imageUrl = entry.imageUrl)
                                                 }
+                                                // Promote most-recently-used item to the top, then
+                                                // scroll the grid so the user lands back on it.
+                                                store.touch(entry.form, entry.id)
+                                                gridState.animateScrollToItem(0)
                                                 snackbar.showSnackbar("Sent: ${entry.title}")
                                             } catch (e: Exception) {
                                                 snackbar.showSnackbar("Send failed — check connection")
