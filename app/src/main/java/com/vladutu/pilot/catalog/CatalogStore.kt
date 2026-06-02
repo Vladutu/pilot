@@ -19,9 +19,9 @@ open class CatalogStore(private val dataStore: DataStore<Preferences>) {
         current.filterNot { it.form == entry.form && it.id == entry.id } + entry
     }
 
-    suspend fun updateMeta(form: Form, id: String, title: String, imagePath: String?) = mutate { current ->
+    suspend fun updateMeta(form: Form, id: String, title: String, imagePath: String?, imageUrl: String?) = mutate { current ->
         current.map {
-            if (it.form == form && it.id == id) it.copy(title = title, imagePath = imagePath) else it
+            if (it.form == form && it.id == id) it.copy(title = title, imagePath = imagePath, imageUrl = imageUrl) else it
         }
     }
 

@@ -13,7 +13,6 @@ import com.vladutu.pilot.share.UrlClassifier
 import com.vladutu.pilot.share.WazeConversionException
 import com.vladutu.pilot.share.WazeUrlNormalizer
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import java.io.IOException
 import java.net.URLDecoder
 
@@ -57,15 +56,31 @@ class DestinationPipeline(
         share: ClassifiedShare.YtMusic,
         manualTitle: String?,
     ): IngestResult {
-        val title = manualTitle?.trim()?.takeIf { it.isNotBlank() }
+        val provisionalTitle = manualTitle?.trim()?.takeIf { it.isNotBlank() }
             ?: share.provisionalTitle?.takeIf { it.isNotBlank() }
             ?: "Untitled ${share.id}"
+
+        // Await metadata — if it fails, fall back to provisional title + null imageUrl.
+        val meta = try {
+            metadataFetcher?.fetch(share)
+        } catch (e: Exception) {
+            Log.w(TAG, "metadata fetch failed", e)
+            null
+        }
+        val resolvedTitle = meta?.title?.takeIf { it.isNotBlank() } ?: provisionalTitle
+        val resolvedImageUrl = meta?.imageUrl?.takeIf { it.isNotBlank() }
+
+        val imageFile = if (resolvedImageUrl != null && metadataFetcher != null) {
+            try { metadataFetcher.downloadImage(resolvedImageUrl, share.form, share.id) }
+            catch (e: Exception) { Log.w(TAG, "image download failed", e); null }
+        } else null
 
         val entry = CatalogEntry(
             form = share.form,
             id = share.id,
-            title = title,
-            imagePath = null,
+            title = resolvedTitle,
+            imagePath = imageFile?.absolutePath,
+            imageUrl = resolvedImageUrl,
             savedAt = clock(),
         )
         val saveOk = try {
@@ -77,33 +92,18 @@ class DestinationPipeline(
         }
 
         val publishResult = try {
-            publisher.publishYtMusic(share.form, share.id)
+            publisher.publishYtMusic(share.form, share.id, title = resolvedTitle, imageUrl = resolvedImageUrl)
             true
         } catch (e: NtfyPublishException) {
             Log.w(TAG, "publish failed", e)
             false
         }
 
-        if (saveOk) {
-            // Fire-and-forget metadata refresh so the tile picks up real title + artwork.
-            val fetcher = metadataFetcher
-            val scope = backgroundScope
-            if (fetcher != null && scope != null) {
-                scope.launch {
-                    try {
-                        fetcher.refresh(share, catalogStore)
-                    } catch (e: Exception) {
-                        Log.w(TAG, "metadata refresh failed", e)
-                    }
-                }
-            }
-        }
-
         return when {
-            saveOk && publishResult -> IngestResult.Success(title)
-            saveOk && !publishResult -> IngestResult.PublishFailed(title)
-            !saveOk && publishResult -> IngestResult.SaveFailed(title)
-            else -> IngestResult.SaveAndPublishFailed(title)
+            saveOk && publishResult -> IngestResult.Success(resolvedTitle)
+            saveOk && !publishResult -> IngestResult.PublishFailed(resolvedTitle)
+            !saveOk && publishResult -> IngestResult.SaveFailed(resolvedTitle)
+            else -> IngestResult.SaveAndPublishFailed(resolvedTitle)
         }
     }
 
@@ -153,7 +153,7 @@ class DestinationPipeline(
         }
 
         return try {
-            publisher.publishWaze(wazeUrl)
+            publisher.publishWaze(wazeUrl, title = title)
             if (saveOk) IngestResult.Success(title) else IngestResult.SaveFailed(title)
         } catch (e: NtfyPublishException) {
             Log.w(TAG, "publish failed", e)

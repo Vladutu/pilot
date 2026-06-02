@@ -8,5 +8,6 @@ data class CatalogEntry(
     val id: String,
     val title: String,
     val imagePath: String?,
+    val imageUrl: String? = null,
     val savedAt: Long,
 )

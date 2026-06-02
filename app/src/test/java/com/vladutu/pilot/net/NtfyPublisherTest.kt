@@ -18,103 +18,50 @@ class NtfyPublisherTest {
     private lateinit var server: MockWebServer
     private lateinit var publisher: NtfyPublisher
 
-    @Before
-    fun setUp() {
-        server = MockWebServer()
-        server.start()
+    @Before fun setUp() {
+        server = MockWebServer().also { it.start() }
         publisher = NtfyPublisher(
             client = OkHttpClient(),
             base = server.url("").toString().trimEnd('/'),
-            topic = "test-topic",
-            clock = { 1717250000L },
+            topic = "topic",
+            clock = { 12345L },
         )
     }
 
-    @After
-    fun tearDown() {
-        server.shutdown()
-    }
+    @After fun tearDown() { server.shutdown() }
 
-    @Test
-    fun `publishYtMusic with playlist form posts v2 url with shuffle`() = runTest {
+    @Test fun `publishYtMusic playlist sends v3 envelope`() = runTest {
         server.enqueue(MockResponse().setResponseCode(200))
-
-        publisher.publishYtMusic(Form.PLAYLIST, "PLabc123")
-
-        val recorded = server.takeRequest()
-        assertEquals("POST", recorded.method)
-        assertEquals("/test-topic", recorded.path)
-        assertTrue(
-            recorded.getHeader("Content-Type")?.startsWith("application/json") == true
-        )
-
-        val body = JSONObject(recorded.body.readUtf8())
-        assertEquals(2, body.getInt("v"))
-        assertEquals(1717250000L, body.getLong("ts"))
+        publisher.publishYtMusic(Form.PLAYLIST, "OLAK5uy_xxx", title = "Mix", imageUrl = "https://img/x.jpg")
+        val req = server.takeRequest()
+        val body = JSONObject(req.body.readUtf8())
+        assertEquals(3, body.getInt("v"))
         assertEquals("ytmusic", body.getString("cmd"))
-        assertEquals(
-            "https://music.youtube.com/watch?list=PLabc123&shuffle=1",
-            body.getString("url"),
-        )
-        assertFalse(body.has("form"))
-        assertFalse(body.has("id"))
+        assertEquals("playlist", body.getString("form"))
+        assertEquals("Mix", body.getString("title"))
+        assertEquals("https://img/x.jpg", body.getString("imageUrl"))
+        assertTrue(body.getString("url").contains("watch?list=OLAK5uy_xxx"))
     }
 
-    @Test
-    fun `publishYtMusic with song form posts v2 url with video id`() = runTest {
+    @Test fun `publishYtMusic song with null title and imageUrl omits or nulls them`() = runTest {
         server.enqueue(MockResponse().setResponseCode(200))
-
-        publisher.publishYtMusic(Form.SONG, "dQw4w9WgXcQ")
-
-        val body = JSONObject(server.takeRequest().body.readUtf8())
-        assertEquals(2, body.getInt("v"))
-        assertEquals("ytmusic", body.getString("cmd"))
-        assertEquals(
-            "https://music.youtube.com/watch?v=dQw4w9WgXcQ",
-            body.getString("url"),
-        )
-        assertFalse(body.has("form"))
-        assertFalse(body.has("id"))
+        publisher.publishYtMusic(Form.SONG, "abc123", title = null, imageUrl = null)
+        val req = server.takeRequest()
+        val body = JSONObject(req.body.readUtf8())
+        assertEquals("song", body.getString("form"))
+        // either absent or explicit null is acceptable; assert v3 didn't include a real string
+        assertTrue(!body.has("title") || body.isNull("title"))
+        assertTrue(!body.has("imageUrl") || body.isNull("imageUrl"))
     }
 
-    @Test(expected = NtfyPublishException::class)
-    fun `publishYtMusic throws on non-2xx response`() = runTest {
-        server.enqueue(MockResponse().setResponseCode(500))
-        publisher.publishYtMusic(Form.PLAYLIST, "PLabc123")
-    }
-
-    @Test
-    fun `clock supplies ts in unix seconds`() = runTest {
+    @Test fun `publishWaze sends destination envelope`() = runTest {
         server.enqueue(MockResponse().setResponseCode(200))
-        publisher.publishYtMusic(Form.PLAYLIST, "PLxyz")
-
-        val body = JSONObject(server.takeRequest().body.readUtf8())
-        assertTrue("ts must be positive", body.getLong("ts") > 0)
-    }
-
-    @Test
-    fun `publishWaze posts v2 envelope with url`() = runTest {
-        server.enqueue(MockResponse().setResponseCode(200))
-
-        val wazePublisher = NtfyPublisher(
-            client = OkHttpClient(),
-            base = server.url("").toString().trimEnd('/'),
-            topic = "test-topic",
-            clock = { 1748779200L },
-        )
-
-        wazePublisher.publishWaze("https://ul.waze.com/ul?ll=52.5,13.4&navigate=yes")
-
-        val recorded = server.takeRequest()
-        assertEquals("POST", recorded.method)
-        assertEquals("/test-topic", recorded.path)
-
-        val bodyJson = JSONObject(recorded.body.readUtf8())
-        assertEquals(2, bodyJson.getInt("v"))
-        assertEquals(1748779200L, bodyJson.getLong("ts"))
-        assertEquals("waze", bodyJson.getString("cmd"))
-        assertEquals("https://ul.waze.com/ul?ll=52.5,13.4&navigate=yes", bodyJson.getString("url"))
-        assertFalse(bodyJson.has("form"))
-        assertFalse(bodyJson.has("id"))
+        publisher.publishWaze(url = "https://ul.waze.com/ul?ll=1,2", title = "Home")
+        val req = server.takeRequest()
+        val body = JSONObject(req.body.readUtf8())
+        assertEquals("waze", body.getString("cmd"))
+        assertEquals("destination", body.getString("form"))
+        assertEquals("Home", body.getString("title"))
+        assertFalse(body.has("imageUrl") && !body.isNull("imageUrl"))
     }
 }

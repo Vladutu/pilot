@@ -301,7 +301,7 @@ class DestinationPipelineTest {
         val publishedYtMusic = mutableListOf<Pair<Form, String>>()
         var failNextPublish = false
 
-        override suspend fun publishWaze(url: String) {
+        override suspend fun publishWaze(url: String, title: String?) {
             if (failNextPublish) {
                 failNextPublish = false
                 throw NtfyPublishException("simulated publish failure")
@@ -309,7 +309,7 @@ class DestinationPipelineTest {
             publishedWaze.add(url)
         }
 
-        override suspend fun publishYtMusic(form: Form, id: String) {
+        override suspend fun publishYtMusic(form: Form, id: String, title: String?, imageUrl: String?) {
             if (failNextPublish) {
                 failNextPublish = false
                 throw NtfyPublishException("simulated publish failure")

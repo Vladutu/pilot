@@ -51,12 +51,13 @@ class MetadataFetcher(
         val meta = fetch(share) ?: return
         val title = meta.title?.takeIf { it.isNotBlank() }
         val imageFile = meta.imageUrl?.let { downloadImage(it, share.form, share.id) }
-        if (title == null && imageFile == null) return
+        if (title == null && imageFile == null && meta.imageUrl == null) return
         store.updateMeta(
             form = share.form,
             id = share.id,
             title = title ?: share.provisionalTitle ?: "Untitled ${share.id}",
             imagePath = imageFile?.absolutePath,
+            imageUrl = meta.imageUrl,
         )
     }
 

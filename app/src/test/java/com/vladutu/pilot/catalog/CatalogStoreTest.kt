@@ -92,7 +92,7 @@ class CatalogStoreTest {
         store.upsert(entry(Form.PLAYLIST, "a", "old-a", savedAt = 100L, imagePath = null))
         store.upsert(entry(Form.PLAYLIST, "b", "old-b", savedAt = 200L, imagePath = null))
 
-        store.updateMeta(Form.PLAYLIST, "a", title = "new-a", imagePath = "/cache/a.jpg")
+        store.updateMeta(Form.PLAYLIST, "a", title = "new-a", imagePath = "/cache/a.jpg", imageUrl = null)
 
         val byId = store.entries.first().associateBy { it.id }
         assertEquals("new-a", byId["a"]!!.title)
@@ -103,7 +103,7 @@ class CatalogStoreTest {
 
     @Test
     fun `updateMeta on missing entry is a no-op`() = runTest {
-        store.updateMeta(Form.SONG, "missing", title = "x", imagePath = null)
+        store.updateMeta(Form.SONG, "missing", title = "x", imagePath = null, imageUrl = null)
         assertEquals(emptyList<CatalogEntry>(), store.entries.first())
     }
 

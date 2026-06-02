@@ -20,20 +20,44 @@ open class NtfyPublisher(
 ) {
     private val json = "application/json".toMediaType()
 
-    open suspend fun publishYtMusic(form: Form, id: String) {
-        postEnvelope(cmd = "ytmusic", url = ytMusicUrl(form, id))
+    open suspend fun publishYtMusic(form: Form, id: String, title: String?, imageUrl: String?) {
+        require(form == Form.PLAYLIST || form == Form.SONG) {
+            "publishYtMusic only accepts PLAYLIST or SONG, got $form"
+        }
+        postEnvelope(
+            cmd = "ytmusic",
+            form = form,
+            url = ytMusicUrl(form, id),
+            title = title,
+            imageUrl = imageUrl,
+        )
     }
 
-    open suspend fun publishWaze(url: String) {
-        postEnvelope(cmd = "waze", url = url)
+    open suspend fun publishWaze(url: String, title: String?) {
+        postEnvelope(
+            cmd = "waze",
+            form = Form.DESTINATION,
+            url = url,
+            title = title,
+            imageUrl = null,
+        )
     }
 
-    private suspend fun postEnvelope(cmd: String, url: String) = withContext(Dispatchers.IO) {
+    private suspend fun postEnvelope(
+        cmd: String,
+        form: Form,
+        url: String,
+        title: String?,
+        imageUrl: String?,
+    ) = withContext(Dispatchers.IO) {
         val payload = JSONObject().apply {
             put("v", SCHEMA_VERSION)
             put("ts", clock())
             put("cmd", cmd)
+            put("form", form.wire)
             put("url", url)
+            title?.let { put("title", it) }
+            imageUrl?.let { put("imageUrl", it) }
         }.toString()
 
         val req = Request.Builder()
@@ -50,7 +74,7 @@ open class NtfyPublisher(
     }
 
     companion object {
-        private const val SCHEMA_VERSION = 2
+        private const val SCHEMA_VERSION = 3
 
         fun ytMusicUrl(form: Form, id: String): String = when (form) {
             Form.PLAYLIST -> "https://music.youtube.com/watch?list=$id&shuffle=1"

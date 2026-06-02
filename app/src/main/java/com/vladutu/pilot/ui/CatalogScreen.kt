@@ -147,9 +147,9 @@ fun CatalogScreen(
                                         scope.launch {
                                             try {
                                                 if (entry.form == Form.DESTINATION) {
-                                                    publisher.publishWaze(entry.id)
+                                                    publisher.publishWaze(entry.id, title = entry.title)
                                                 } else {
-                                                    publisher.publishYtMusic(entry.form, entry.id)
+                                                    publisher.publishYtMusic(entry.form, entry.id, title = entry.title, imageUrl = entry.imageUrl)
                                                 }
                                                 snackbar.showSnackbar("Sent: ${entry.title}")
                                             } catch (e: Exception) {
