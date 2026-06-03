@@ -1,9 +1,9 @@
 package com.vladutu.pilot.destination
 
-import android.util.Log
 import com.vladutu.pilot.catalog.CatalogEntry
 import com.vladutu.pilot.catalog.CatalogStore
 import com.vladutu.pilot.catalog.Form
+import com.vladutu.pilot.diagnostics.DiagnosticLog
 import com.vladutu.pilot.meta.MetadataFetcher
 import com.vladutu.pilot.net.NtfyPublishException
 import com.vladutu.pilot.net.NtfyPublisher
@@ -42,14 +42,21 @@ class DestinationPipeline(
         manualTitle: String?,
         subject: String?,
     ): IngestResult {
+        DiagnosticLog.i(TAG, "ingest urlText=$urlText subject=$subject manualTitle=$manualTitle")
         val classified = UrlClassifier.classifyUrl(urlText, subject)
-            ?: return IngestResult.NotARecognizedLink
+        if (classified == null) {
+            DiagnosticLog.w(TAG, "url not recognized: $urlText")
+            return IngestResult.NotARecognizedLink
+        }
+        DiagnosticLog.i(TAG, "classified as ${classified::class.simpleName}")
 
-        return when (classified) {
+        val result = when (classified) {
             is ClassifiedShare.YtMusic -> ingestYtMusic(classified, manualTitle)
             is ClassifiedShare.MapsShare,
             is ClassifiedShare.WazeShare -> ingestDestination(classified, manualTitle)
         }
+        DiagnosticLog.i(TAG, "ingest result=${result::class.simpleName}")
+        return result
     }
 
     private suspend fun ingestYtMusic(
@@ -64,15 +71,16 @@ class DestinationPipeline(
         val meta = try {
             metadataFetcher?.fetch(share)
         } catch (e: Exception) {
-            Log.w(TAG, "metadata fetch failed", e)
+            DiagnosticLog.w(TAG, "metadata fetch failed", e)
             null
         }
         val resolvedTitle = meta?.title?.takeIf { it.isNotBlank() } ?: provisionalTitle
         val resolvedImageUrl = meta?.imageUrl?.takeIf { it.isNotBlank() }
+        DiagnosticLog.i(TAG, "ytmusic resolved title='$resolvedTitle' imageUrl=$resolvedImageUrl")
 
         val imageFile = if (resolvedImageUrl != null && metadataFetcher != null) {
             try { metadataFetcher.downloadImage(resolvedImageUrl, share.form, share.id) }
-            catch (e: Exception) { Log.w(TAG, "image download failed", e); null }
+            catch (e: Exception) { DiagnosticLog.w(TAG, "image download failed", e); null }
         } else null
 
         val entry = CatalogEntry(
@@ -85,9 +93,10 @@ class DestinationPipeline(
         )
         val saveOk = try {
             catalogStore.upsert(entry)
+            DiagnosticLog.i(TAG, "catalog upsert ok ${share.form}:${share.id}")
             true
         } catch (e: Exception) {
-            Log.w(TAG, "catalog save failed", e)
+            DiagnosticLog.w(TAG, "catalog save failed", e)
             false
         }
 
@@ -95,7 +104,7 @@ class DestinationPipeline(
             publisher.publishYtMusic(share.form, share.id, title = resolvedTitle, imageUrl = resolvedImageUrl)
             true
         } catch (e: NtfyPublishException) {
-            Log.w(TAG, "publish failed", e)
+            DiagnosticLog.w(TAG, "publish failed (NtfyPublishException)", e)
             false
         }
 
@@ -116,7 +125,7 @@ class DestinationPipeline(
                 try {
                     converter.convert(classified.rawUrl)
                 } catch (e: WazeConversionException) {
-                    Log.w(TAG, "conversion failed", e)
+                    DiagnosticLog.w(TAG, "conversion failed", e)
                     return classifyConversionError(e)
                 }
             }
@@ -124,11 +133,13 @@ class DestinationPipeline(
                 try {
                     WazeUrlNormalizer.normalize(classified.url)
                 } catch (e: IllegalArgumentException) {
+                    DiagnosticLog.w(TAG, "unsupported waze host: ${classified.url}", e)
                     return IngestResult.UnsupportedWazeHost
                 }
             }
             is ClassifiedShare.YtMusic -> error("unreachable")
         }
+        DiagnosticLog.i(TAG, "destination wazeUrl=$wazeUrl")
 
         val title = resolveTitle(
             manualTitle = manualTitle,
@@ -146,9 +157,10 @@ class DestinationPipeline(
         )
         val saveOk = try {
             catalogStore.upsert(entry)
+            DiagnosticLog.i(TAG, "catalog upsert ok DESTINATION:$wazeUrl")
             true
         } catch (e: Exception) {
-            Log.w(TAG, "catalog save failed", e)
+            DiagnosticLog.w(TAG, "catalog save failed", e)
             false
         }
 
@@ -156,7 +168,7 @@ class DestinationPipeline(
             publisher.publishWaze(wazeUrl, title = title)
             if (saveOk) IngestResult.Success(title) else IngestResult.SaveFailed(title)
         } catch (e: NtfyPublishException) {
-            Log.w(TAG, "publish failed", e)
+            DiagnosticLog.w(TAG, "publish failed (NtfyPublishException)", e)
             if (saveOk) IngestResult.PublishFailed(title) else IngestResult.SaveAndPublishFailed(title)
         }
     }

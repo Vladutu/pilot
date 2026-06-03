@@ -1,5 +1,6 @@
 package com.vladutu.pilot.share
 
+import com.vladutu.pilot.diagnostics.DiagnosticLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
@@ -35,18 +36,29 @@ class MapsToWazeConverter(
             .callTimeout(callTimeoutSec, TimeUnit.SECONDS)
             .build()
 
+        DiagnosticLog.i(TAG, "converting $googleMapsUrl")
         try {
             perCallClient.newCall(req).execute().use { resp ->
                 if (resp.code != 302) {
+                    DiagnosticLog.w(TAG, "converter returned HTTP ${resp.code} (expected 302)")
                     throw WazeConversionException("converter returned HTTP ${resp.code} (expected 302)")
                 }
                 val location = resp.header("Location")
-                    ?: throw WazeConversionException("302 response had no Location header")
+                    ?: run {
+                        DiagnosticLog.w(TAG, "302 had no Location header")
+                        throw WazeConversionException("302 response had no Location header")
+                    }
+                DiagnosticLog.i(TAG, "converted to $location")
                 location
             }
         } catch (e: IOException) {
             if (e is WazeConversionException) throw e
+            DiagnosticLog.e(TAG, "converter request failed (${e.javaClass.simpleName}): ${e.message}", e)
             throw WazeConversionException("converter request failed: ${e.message}", e)
         }
+    }
+
+    private companion object {
+        const val TAG = "MapsConv"
     }
 }

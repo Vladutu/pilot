@@ -1,6 +1,7 @@
 package com.vladutu.pilot.net
 
 import com.vladutu.pilot.catalog.Form
+import com.vladutu.pilot.diagnostics.DiagnosticLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -66,14 +67,25 @@ open class NtfyPublisher(
             .post(payload.toRequestBody(json))
             .build()
 
-        client.newCall(req).execute().use { resp ->
-            if (!resp.isSuccessful) {
-                throw NtfyPublishException("ntfy returned HTTP ${resp.code}")
+        DiagnosticLog.i(TAG, "publishing cmd=$cmd form=${form.wire} url=$url")
+        try {
+            client.newCall(req).execute().use { resp ->
+                if (!resp.isSuccessful) {
+                    DiagnosticLog.w(TAG, "publish non-2xx HTTP ${resp.code}")
+                    throw NtfyPublishException("ntfy returned HTTP ${resp.code}")
+                }
+                DiagnosticLog.i(TAG, "publish ok HTTP ${resp.code}")
             }
+        } catch (e: IOException) {
+            if (e !is NtfyPublishException) {
+                DiagnosticLog.e(TAG, "publish threw ${e.javaClass.simpleName}: ${e.message}", e)
+            }
+            throw e
         }
     }
 
     companion object {
+        private const val TAG = "Ntfy"
         private const val SCHEMA_VERSION = 3
 
         fun ytMusicUrl(form: Form, id: String): String = when (form) {

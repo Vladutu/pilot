@@ -10,14 +10,17 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import android.content.Intent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -27,6 +30,8 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
@@ -45,6 +50,8 @@ import com.vladutu.pilot.catalog.CatalogEntry
 import com.vladutu.pilot.catalog.CatalogStore
 import com.vladutu.pilot.catalog.Form
 import com.vladutu.pilot.destination.DestinationPipeline
+import com.vladutu.pilot.diagnostics.DiagnosticLog
+import com.vladutu.pilot.diagnostics.DiagnosticsActivity
 import com.vladutu.pilot.meta.MetadataFetcher
 import com.vladutu.pilot.net.NtfyPublisher
 import com.vladutu.pilot.share.ClassifiedShare
@@ -78,9 +85,22 @@ fun CatalogScreen(
     val gridState = rememberLazyGridState()
 
     val currentForm = TABS[selectedTab].first
+    val context = LocalContext.current
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Pilot") },
+                actions = {
+                    IconButton(onClick = {
+                        context.startActivity(Intent(context, DiagnosticsActivity::class.java))
+                    }) {
+                        Icon(Icons.Default.Info, contentDescription = "Diagnostics")
+                    }
+                },
+            )
+        },
         floatingActionButton = {
             val cd = when (currentForm) {
                 Form.PLAYLIST -> "Add playlist"
@@ -147,6 +167,7 @@ fun CatalogScreen(
                                     busy = busy[key] == true,
                                     onClick = {
                                         busy[key] = true
+                                        DiagnosticLog.i("Tap", "tap ${entry.form}:${entry.id} '${entry.title}'")
                                         scope.launch {
                                             try {
                                                 if (entry.form == Form.DESTINATION) {
@@ -154,12 +175,14 @@ fun CatalogScreen(
                                                 } else {
                                                     publisher.publishYtMusic(entry.form, entry.id, title = entry.title, imageUrl = entry.imageUrl)
                                                 }
+                                                DiagnosticLog.i("Tap", "tap publish ok ${entry.form}:${entry.id}")
                                                 // Promote most-recently-used item to the top, then
                                                 // scroll the grid so the user lands back on it.
                                                 store.touch(entry.form, entry.id)
                                                 gridState.animateScrollToItem(0)
                                                 snackbar.showSnackbar("Sent: ${entry.title}")
                                             } catch (e: Exception) {
+                                                DiagnosticLog.e("Tap", "tap publish failed (${e.javaClass.simpleName})", e)
                                                 snackbar.showSnackbar("Send failed — check connection")
                                             } finally {
                                                 busy[key] = false
@@ -213,9 +236,16 @@ fun CatalogScreen(
                 activeForm = currentForm,
                 onSubmit = { urlText, title ->
                     showAddDialog = false
+                    DiagnosticLog.i("AddUrl", "manual add urlText=$urlText title=$title")
                     scope.launch {
-                        val result = pipeline.ingest(urlText = urlText, manualTitle = title, subject = null)
-                        snackbar.showSnackbar(result.toastText)
+                        try {
+                            val result = pipeline.ingest(urlText = urlText, manualTitle = title, subject = null)
+                            DiagnosticLog.i("AddUrl", "manual add result=${result::class.simpleName}")
+                            snackbar.showSnackbar(result.toastText)
+                        } catch (t: Throwable) {
+                            DiagnosticLog.e("AddUrl", "manual add threw ${t.javaClass.simpleName}", t)
+                            snackbar.showSnackbar("Add failed — check log")
+                        }
                     }
                 },
                 onDismiss = { showAddDialog = false },

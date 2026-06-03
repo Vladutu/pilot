@@ -7,9 +7,11 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.vladutu.pilot.catalog.CatalogStore
 import com.vladutu.pilot.config.Config
 import com.vladutu.pilot.destination.DestinationPipeline
+import com.vladutu.pilot.diagnostics.DiagnosticLog
 import com.vladutu.pilot.meta.MetadataFetcher
 import com.vladutu.pilot.net.NtfyPublisher
 import com.vladutu.pilot.share.MapsToWazeConverter
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -19,7 +21,19 @@ private val Application.catalogDataStore: DataStore<Preferences> by preferencesD
 
 class PilotApp : Application() {
 
-    val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val crashHandler = CoroutineExceptionHandler { ctx, t ->
+        // Swallow-and-log: capture what would have crashed the process so we can diagnose it
+        // after the fact via DiagnosticsActivity. Defense in depth for paths that miss a catch.
+        DiagnosticLog.e("AppScope", "uncaught coroutine exception in $ctx", t)
+    }
+
+    val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + crashHandler)
+
+    override fun onCreate() {
+        super.onCreate()
+        DiagnosticLog.init(this)
+        DiagnosticLog.i("App", "PilotApp.onCreate (pid=${android.os.Process.myPid()})")
+    }
 
     val httpClient: OkHttpClient by lazy { OkHttpClient() }
 
