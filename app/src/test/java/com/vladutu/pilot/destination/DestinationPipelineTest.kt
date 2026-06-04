@@ -66,6 +66,29 @@ class DestinationPipelineTest {
     }
 
     @Test
+    fun ingest_mapsUrl_persistsOriginalGoogleMapsUrl() = runBlocking {
+        val rawMapsUrl = "https://www.google.com/maps/place/Brandenburg+Gate/@52.5,13.4,17z/"
+        converterServer.enqueue(MockResponse().setResponseCode(302).setHeader("Location", wazeUrl))
+
+        newPipeline().ingest(urlText = rawMapsUrl, manualTitle = null, subject = "Brandenburg Gate")
+
+        assertEquals(1, savedEntries.size)
+        assertEquals(rawMapsUrl, savedEntries[0].googleMapsUrl)
+    }
+
+    @Test
+    fun ingest_wazeUrl_leavesGoogleMapsUrlNull() = runBlocking {
+        newPipeline().ingest(
+            urlText = "https://ul.waze.com/ul?ll=52.5,13.4",
+            manualTitle = "Home",
+            subject = null,
+        )
+
+        assertEquals(1, savedEntries.size)
+        assertEquals(null, savedEntries[0].googleMapsUrl)
+    }
+
+    @Test
     fun ingest_wazeUrl_normalizesSavesAndPublishes() = runBlocking {
         val pasted = "https://ul.waze.com/ul?ll=52.5,13.4"
 

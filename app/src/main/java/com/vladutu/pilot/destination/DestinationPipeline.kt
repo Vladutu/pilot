@@ -141,6 +141,8 @@ class DestinationPipeline(
         }
         DiagnosticLog.i(TAG, "destination wazeUrl=$wazeUrl")
 
+        val googleMapsUrl: String? = (classified as? ClassifiedShare.MapsShare)?.rawUrl
+
         val title = resolveTitle(
             manualTitle = manualTitle,
             shareProvisionalTitle = classified.provisionalTitle,
@@ -153,6 +155,7 @@ class DestinationPipeline(
             id = wazeUrl,
             title = title,
             imagePath = null,
+            googleMapsUrl = googleMapsUrl,
             savedAt = clock(),
         )
         val saveOk = try {

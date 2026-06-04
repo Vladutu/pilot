@@ -9,5 +9,6 @@ data class CatalogEntry(
     val title: String,
     val imagePath: String?,
     val imageUrl: String? = null,
+    val googleMapsUrl: String? = null,
     val savedAt: Long,
 )
