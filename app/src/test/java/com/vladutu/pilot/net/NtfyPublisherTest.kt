@@ -64,4 +64,18 @@ class NtfyPublisherTest {
         assertEquals("Home", body.getString("title"))
         assertFalse(body.has("imageUrl") && !body.isNull("imageUrl"))
     }
+
+    @Test fun `publishMaps sends destination envelope with maps cmd`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200))
+        val mapsUrl = "https://www.google.com/maps/place/Brandenburg+Gate/@52.5,13.4,17z/"
+        publisher.publishMaps(url = mapsUrl, title = "Brandenburg Gate")
+        val req = server.takeRequest()
+        val body = JSONObject(req.body.readUtf8())
+        assertEquals(3, body.getInt("v"))
+        assertEquals("maps", body.getString("cmd"))
+        assertEquals("destination", body.getString("form"))
+        assertEquals(mapsUrl, body.getString("url"))
+        assertEquals("Brandenburg Gate", body.getString("title"))
+        assertFalse(body.has("imageUrl") && !body.isNull("imageUrl"))
+    }
 }

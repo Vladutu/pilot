@@ -44,6 +44,16 @@ open class NtfyPublisher(
         )
     }
 
+    open suspend fun publishMaps(url: String, title: String?) {
+        postEnvelope(
+            cmd = "maps",
+            form = Form.DESTINATION,
+            url = url,
+            title = title,
+            imageUrl = null,
+        )
+    }
+
     private suspend fun postEnvelope(
         cmd: String,
         form: Form,
