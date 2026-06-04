@@ -71,7 +71,7 @@ private data class TabSpec(val form: Form, val label: String, val icon: ImageVec
 private val TABS = listOf(
     TabSpec(Form.PLAYLIST, "Playlists", Icons.Filled.PlaylistPlay),
     TabSpec(Form.SONG, "Songs", Icons.Filled.MusicNote),
-    TabSpec(Form.DESTINATION, "Destinations", Icons.Filled.Place),
+    TabSpec(Form.DESTINATION, "Places", Icons.Filled.Place),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
