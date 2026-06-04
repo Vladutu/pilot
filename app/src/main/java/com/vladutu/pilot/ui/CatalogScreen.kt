@@ -55,6 +55,7 @@ import com.vladutu.pilot.diagnostics.DiagnosticsActivity
 import com.vladutu.pilot.meta.MetadataFetcher
 import com.vladutu.pilot.net.NtfyPublisher
 import com.vladutu.pilot.share.ClassifiedShare
+import com.vladutu.pilot.share.MapsNavUrlBuilder
 import kotlinx.coroutines.launch
 
 private val TABS = listOf(
@@ -209,14 +210,22 @@ fun CatalogScreen(
                                             text = { Text("Send as Maps") },
                                             onClick = {
                                                 val target = entry
-                                                val mapsUrl = target.googleMapsUrl
+                                                // Build a Maps directions URL (dir_action=navigate) from
+                                                // the lat/lng stored in the Waze URL. Sending the raw
+                                                // googleMapsUrl would only open the place card; the user
+                                                // would still have to tap Directions → Start.
+                                                val navUrl = MapsNavUrlBuilder.fromWazeUrl(target.id)
                                                 menuFor = null
-                                                if (mapsUrl == null) return@DropdownMenuItem
+                                                if (navUrl == null) {
+                                                    DiagnosticLog.w("Tap", "send-as-maps no ll in ${target.id}")
+                                                    scope.launch { snackbar.showSnackbar("No coordinates for this destination") }
+                                                    return@DropdownMenuItem
+                                                }
                                                 busy[key] = true
                                                 DiagnosticLog.i("Tap", "send-as-maps ${target.form}:${target.id} '${target.title}'")
                                                 scope.launch {
                                                     try {
-                                                        publisher.publishMaps(mapsUrl, title = target.title)
+                                                        publisher.publishMaps(navUrl, title = target.title)
                                                         DiagnosticLog.i("Tap", "send-as-maps publish ok ${target.form}:${target.id}")
                                                         store.touch(target.form, target.id)
                                                         gridState.animateScrollToItem(0)
