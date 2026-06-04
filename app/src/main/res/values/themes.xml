@@ -1,3 +1,9 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.Pilot" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Dark window background so startup doesn't flash white before Compose paints. -->
+    <style name="Theme.Pilot" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:statusBarColor">@color/window_background</item>
+        <item name="android:navigationBarColor">@color/window_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
 </resources>

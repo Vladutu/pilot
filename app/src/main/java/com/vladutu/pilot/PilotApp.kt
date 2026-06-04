@@ -11,6 +11,7 @@ import com.vladutu.pilot.diagnostics.DiagnosticLog
 import com.vladutu.pilot.meta.MetadataFetcher
 import com.vladutu.pilot.net.NtfyPublisher
 import com.vladutu.pilot.share.MapsToWazeConverter
+import com.vladutu.pilot.ui.PublishStatusHolder
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,6 +43,8 @@ class PilotApp : Application() {
     val ntfyPublisher: NtfyPublisher by lazy {
         NtfyPublisher(client = httpClient, base = Config.NTFY_BASE, topic = Config.NTFY_TOPIC)
     }
+
+    val publishStatus: PublishStatusHolder by lazy { PublishStatusHolder() }
 
     val metadataFetcher: MetadataFetcher by lazy {
         MetadataFetcher(client = httpClient, cacheDir = cacheDir)

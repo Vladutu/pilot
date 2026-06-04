@@ -5,7 +5,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -14,6 +16,9 @@ import android.content.Intent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.PlaylistPlay
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -24,13 +29,16 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -58,10 +66,12 @@ import com.vladutu.pilot.share.ClassifiedShare
 import com.vladutu.pilot.share.MapsNavUrlBuilder
 import kotlinx.coroutines.launch
 
+private data class TabSpec(val form: Form, val label: String, val icon: ImageVector)
+
 private val TABS = listOf(
-    Form.PLAYLIST to "Playlists",
-    Form.SONG to "Songs",
-    Form.DESTINATION to "Destinations",
+    TabSpec(Form.PLAYLIST, "Playlists", Icons.Filled.PlaylistPlay),
+    TabSpec(Form.SONG, "Songs", Icons.Filled.MusicNote),
+    TabSpec(Form.DESTINATION, "Destinations", Icons.Filled.Place),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,6 +81,7 @@ fun CatalogScreen(
     store: CatalogStore,
     metadataFetcher: MetadataFetcher,
     pipeline: DestinationPipeline,
+    publishStatus: PublishStatusHolder,
 ) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -85,15 +96,22 @@ fun CatalogScreen(
     var refreshing by remember { mutableStateOf(false) }
     val gridState = rememberLazyGridState()
 
-    val currentForm = TABS[selectedTab].first
+    val currentForm = TABS[selectedTab].form
     val context = LocalContext.current
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text("Pilot") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
                 actions = {
+                    StatusPill(statusFlow = publishStatus.state)
                     IconButton(onClick = {
                         context.startActivity(Intent(context, DiagnosticsActivity::class.java))
                     }) {
@@ -114,12 +132,24 @@ fun CatalogScreen(
         },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            TabRow(selectedTabIndex = selectedTab) {
-                TABS.forEachIndexed { index, (_, title) ->
-                    Tab(
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+            ) {
+                TABS.forEachIndexed { index, spec ->
+                    SegmentedButton(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        text = { Text(title) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = TABS.size),
+                        icon = {
+                            Icon(
+                                imageVector = spec.icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        },
+                        label = { Text(spec.label) },
                     )
                 }
             }
@@ -163,6 +193,7 @@ fun CatalogScreen(
                             val key = "${entry.form}-${entry.id}"
                             Box {
                                 Tile(
+                                    form = entry.form,
                                     title = entry.title,
                                     imagePath = entry.imagePath,
                                     busy = busy[key] == true,
@@ -177,6 +208,7 @@ fun CatalogScreen(
                                                     publisher.publishYtMusic(entry.form, entry.id, title = entry.title, imageUrl = entry.imageUrl)
                                                 }
                                                 DiagnosticLog.i("Tap", "tap publish ok ${entry.form}:${entry.id}")
+                                                publishStatus.markOk()
                                                 // Promote most-recently-used item to the top, then
                                                 // scroll the grid so the user lands back on it.
                                                 store.touch(entry.form, entry.id)
@@ -184,6 +216,7 @@ fun CatalogScreen(
                                                 snackbar.showSnackbar("Sent: ${entry.title}")
                                             } catch (e: Exception) {
                                                 DiagnosticLog.e("Tap", "tap publish failed (${e.javaClass.simpleName})", e)
+                                                publishStatus.markFailed()
                                                 snackbar.showSnackbar("Send failed — check connection")
                                             } finally {
                                                 busy[key] = false
@@ -227,11 +260,13 @@ fun CatalogScreen(
                                                     try {
                                                         publisher.publishMaps(navUrl, title = target.title)
                                                         DiagnosticLog.i("Tap", "send-as-maps publish ok ${target.form}:${target.id}")
+                                                        publishStatus.markOk()
                                                         store.touch(target.form, target.id)
                                                         gridState.animateScrollToItem(0)
                                                         snackbar.showSnackbar("Sent as Maps: ${target.title}")
                                                     } catch (e: Exception) {
                                                         DiagnosticLog.e("Tap", "send-as-maps publish failed (${e.javaClass.simpleName})", e)
+                                                        publishStatus.markFailed()
                                                         snackbar.showSnackbar("Send failed — check connection")
                                                     } finally {
                                                         busy[key] = false
