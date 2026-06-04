@@ -204,6 +204,33 @@ fun CatalogScreen(
                                             },
                                         )
                                     }
+                                    if (entry.form == Form.DESTINATION && entry.googleMapsUrl != null) {
+                                        DropdownMenuItem(
+                                            text = { Text("Send as Maps") },
+                                            onClick = {
+                                                val target = entry
+                                                val mapsUrl = target.googleMapsUrl
+                                                menuFor = null
+                                                if (mapsUrl == null) return@DropdownMenuItem
+                                                busy[key] = true
+                                                DiagnosticLog.i("Tap", "send-as-maps ${target.form}:${target.id} '${target.title}'")
+                                                scope.launch {
+                                                    try {
+                                                        publisher.publishMaps(mapsUrl, title = target.title)
+                                                        DiagnosticLog.i("Tap", "send-as-maps publish ok ${target.form}:${target.id}")
+                                                        store.touch(target.form, target.id)
+                                                        gridState.animateScrollToItem(0)
+                                                        snackbar.showSnackbar("Sent as Maps: ${target.title}")
+                                                    } catch (e: Exception) {
+                                                        DiagnosticLog.e("Tap", "send-as-maps publish failed (${e.javaClass.simpleName})", e)
+                                                        snackbar.showSnackbar("Send failed — check connection")
+                                                    } finally {
+                                                        busy[key] = false
+                                                    }
+                                                }
+                                            },
+                                        )
+                                    }
                                     DropdownMenuItem(
                                         text = { Text("Delete") },
                                         onClick = {
