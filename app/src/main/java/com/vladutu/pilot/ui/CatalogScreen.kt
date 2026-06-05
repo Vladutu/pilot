@@ -229,15 +229,13 @@ fun CatalogScreen(
                                     expanded = menuFor == entry,
                                     onDismissRequest = { menuFor = null },
                                 ) {
-                                    if (entry.form != Form.DESTINATION) {
-                                        DropdownMenuItem(
-                                            text = { Text("Rename") },
-                                            onClick = {
-                                                renameFor = entry
-                                                menuFor = null
-                                            },
-                                        )
-                                    }
+                                    DropdownMenuItem(
+                                        text = { Text("Rename") },
+                                        onClick = {
+                                            renameFor = entry
+                                            menuFor = null
+                                        },
+                                    )
                                     if (entry.form == Form.DESTINATION && entry.googleMapsUrl != null) {
                                         DropdownMenuItem(
                                             text = { Text("Send as Maps") },
