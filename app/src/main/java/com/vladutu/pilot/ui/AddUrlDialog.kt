@@ -29,6 +29,7 @@ fun AddUrlDialog(
     val urlLabel = when (activeForm) {
         Form.PLAYLIST, Form.SONG -> "YouTube Music URL"
         Form.DESTINATION -> "Google Maps or Waze URL"
+        Form.RADIO -> "Radio stream URL (http/https)"
     }
 
     AlertDialog(
@@ -38,6 +39,7 @@ fun AddUrlDialog(
                 Form.PLAYLIST -> "Add playlist"
                 Form.SONG -> "Add song"
                 Form.DESTINATION -> "Add destination"
+                Form.RADIO -> "Add stream URL"
             }
             Text(title)
         },

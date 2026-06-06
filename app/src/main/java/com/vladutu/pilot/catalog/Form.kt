@@ -6,7 +6,8 @@ import kotlinx.serialization.Serializable
 enum class Form {
     PLAYLIST,
     SONG,
-    DESTINATION;
+    DESTINATION,
+    RADIO;
 
     /** The lowercase string used on the ntfy wire (`"playlist"` / `"song"`). */
     val wire: String get() = name.lowercase()

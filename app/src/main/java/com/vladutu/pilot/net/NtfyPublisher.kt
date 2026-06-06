@@ -54,6 +54,16 @@ open class NtfyPublisher(
         )
     }
 
+    open suspend fun publishRadio(streamUrl: String, title: String?, imageUrl: String?) {
+        postEnvelope(
+            cmd = "radio",
+            form = Form.RADIO,
+            url = streamUrl,
+            title = title,
+            imageUrl = imageUrl,
+        )
+    }
+
     private suspend fun postEnvelope(
         cmd: String,
         form: Form,
@@ -103,6 +113,9 @@ open class NtfyPublisher(
             Form.SONG -> "https://music.youtube.com/watch?v=$id"
             Form.DESTINATION -> throw IllegalArgumentException(
                 "DESTINATION is not a YouTube Music form; use publishWaze",
+            )
+            Form.RADIO -> throw IllegalArgumentException(
+                "RADIO is not a YouTube Music form; use publishRadio",
             )
         }
     }

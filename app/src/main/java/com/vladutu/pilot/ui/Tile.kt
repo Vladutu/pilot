@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.PlaylistPlay
+import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -124,4 +125,5 @@ private fun formIcon(form: Form): ImageVector = when (form) {
     Form.PLAYLIST -> Icons.Filled.PlaylistPlay
     Form.SONG -> Icons.Filled.MusicNote
     Form.DESTINATION -> Icons.Filled.Place
+    Form.RADIO -> Icons.Filled.Radio
 }

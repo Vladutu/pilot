@@ -50,6 +50,14 @@ class PilotApp : Application() {
         MetadataFetcher(client = httpClient, cacheDir = cacheDir)
     }
 
+    val radioServerResolver: com.vladutu.pilot.radio.RadioBrowserServerResolver by lazy {
+        com.vladutu.pilot.radio.RadioBrowserServerResolver(client = httpClient)
+    }
+
+    val radioBrowserClient: com.vladutu.pilot.radio.RadioBrowserClient by lazy {
+        com.vladutu.pilot.radio.RadioBrowserClient(client = httpClient, resolver = radioServerResolver)
+    }
+
     val mapsToWazeConverter: MapsToWazeConverter by lazy {
         MapsToWazeConverter(client = httpClient, endpoint = Config.WAZE_CONVERTER_URL)
     }

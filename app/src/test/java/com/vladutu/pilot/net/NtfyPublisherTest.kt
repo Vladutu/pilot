@@ -78,4 +78,30 @@ class NtfyPublisherTest {
         assertEquals("Brandenburg Gate", body.getString("title"))
         assertFalse(body.has("imageUrl") && !body.isNull("imageUrl"))
     }
+
+    @Test fun `publishRadio sends radio envelope`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200))
+        publisher.publishRadio(
+            streamUrl = "https://live.example.ro/europafm.mp3",
+            title = "Europa FM",
+            imageUrl = "https://example.ro/fav.png",
+        )
+        val req = server.takeRequest()
+        val body = JSONObject(req.body.readUtf8())
+        assertEquals(3, body.getInt("v"))
+        assertEquals("radio", body.getString("cmd"))
+        assertEquals("radio", body.getString("form"))
+        assertEquals("https://live.example.ro/europafm.mp3", body.getString("url"))
+        assertEquals("Europa FM", body.getString("title"))
+        assertEquals("https://example.ro/fav.png", body.getString("imageUrl"))
+    }
+
+    @Test fun `publishRadio omits null imageUrl`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200))
+        publisher.publishRadio(streamUrl = "https://live.example.ro/x.mp3", title = "X", imageUrl = null)
+        val req = server.takeRequest()
+        val body = JSONObject(req.body.readUtf8())
+        assertEquals("radio", body.getString("cmd"))
+        assertTrue(!body.has("imageUrl") || body.isNull("imageUrl"))
+    }
 }
