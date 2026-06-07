@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -13,12 +15,26 @@ android {
         applicationId = "com.vladutu.pilot"
         minSdk = 29
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = (project.findProperty("versionCode") as String?)?.toInt() ?: 1
+        versionName = (project.findProperty("versionName") as String?) ?: "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    val releaseSigningProps = rootProject.file("keystore/signing.properties")
+    signingConfigs {
+        create("release") {
+            if (releaseSigningProps.exists()) {
+                val props = Properties().apply {
+                    releaseSigningProps.inputStream().use { load(it) }
+                }
+                storeFile = rootProject.file("keystore/${props.getProperty("storeFile")}")
+                storePassword = props.getProperty("storePassword")
+                keyAlias = props.getProperty("keyAlias")
+                keyPassword = props.getProperty("keyPassword")
+            }
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -26,7 +42,11 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("debug") // sideloaded; debug-signed is fine
+            signingConfig = if (releaseSigningProps.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug") // fallback if keystore/signing.properties is absent
+            }
         }
         debug {
             applicationIdSuffix = ".debug"
