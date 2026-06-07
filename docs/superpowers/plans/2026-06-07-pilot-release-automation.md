@@ -302,8 +302,9 @@ SRC_APK="app/build/outputs/apk/release/app-release.apk"
 OUT_APK="pilot-$VERSION.apk"
 cp "$SRC_APK" "$OUT_APK"
 
-# --- tag + publish ---
-echo "==> tag + GitHub release"
+# --- push, tag + publish ---
+echo "==> push branch + tag + GitHub release"
+git push origin HEAD
 git tag -a "$TAG" -m "Pilot $VERSION"
 git push origin "$TAG"
 gh release create "$TAG" \

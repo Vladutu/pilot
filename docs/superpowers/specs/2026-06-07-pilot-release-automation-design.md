@@ -101,12 +101,13 @@ Committed in the Pilot repo. Bash, `set -euo pipefail`. Single argument: the sem
 7. `./gradlew testReleaseUnitTest` — abort on failure.
 8. `./gradlew assembleRelease -PversionName=<v> -PversionCode=<code>`.
 9. Rename `app/build/outputs/apk/release/app-release.apk` → `pilot-<v>.apk`.
-10. `git tag v<v> && git push origin v<v>`.
+10. `git push origin HEAD` (advance the branch), then `git tag v<v> && git push origin v<v>`.
 11. `gh release create v<v> --repo Vladutu/pilot --latest --title "Pilot <v>" --notes "<generated>" pilot-<v>.apk`.
 12. Print the Obtainium URL and a success summary.
 
 The script does **not** run `git commit` — the author commits build-file/wrapper changes in Studio.
-The only git writes are the annotated tag + push in step 10, which are intrinsic to cutting a release.
+Its git writes are pushing the current branch and the annotated tag in step 10, which are intrinsic
+to cutting a release.
 
 ### 5. Obtainium setup (one-time, per device — documentation, not code)
 
