@@ -62,15 +62,20 @@ PROPS="gradle/wrapper/gradle-wrapper.properties"
 
 cd "$(dirname "$0")/.."
 
-if ! command -v gradle >/dev/null 2>&1; then
-  echo "error: no 'gradle' on PATH. Install it first, e.g.:" >&2
+# Find a gradle: PATH first, then SDKMAN's (its init isn't sourced in scripts).
+if command -v gradle >/dev/null 2>&1; then
+  GRADLE_BIN="gradle"
+elif [ -x "$HOME/.sdkman/candidates/gradle/current/bin/gradle" ]; then
+  GRADLE_BIN="$HOME/.sdkman/candidates/gradle/current/bin/gradle"
+else
+  echo "error: no 'gradle' found. Install it first, e.g.:" >&2
   echo "  sdk install gradle ${GRADLE_VERSION}   # SDKMAN" >&2
   echo "  brew install gradle                    # Homebrew" >&2
   exit 1
 fi
 
-gradle --stop >/dev/null 2>&1 || true   # drop any stale daemon before regenerating
-gradle wrapper --gradle-distribution-url "$DIST_URL"
+"$GRADLE_BIN" --stop >/dev/null 2>&1 || true   # drop any stale daemon before regenerating
+"$GRADLE_BIN" wrapper --gradle-distribution-url "$DIST_URL"
 
 if ! grep -q "^distributionUrl=https\\\\://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" "$PROPS"; then
   echo "error: unexpected distributionUrl in $PROPS:" >&2
