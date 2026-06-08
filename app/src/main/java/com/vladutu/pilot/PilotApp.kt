@@ -69,6 +69,7 @@ class PilotApp : Application() {
             publisher = ntfyPublisher,
             metadataFetcher = metadataFetcher,
             backgroundScope = applicationScope,
+            processStateProbe = { com.vladutu.pilot.diagnostics.ProcessState.describe(this) },
         )
     }
 }

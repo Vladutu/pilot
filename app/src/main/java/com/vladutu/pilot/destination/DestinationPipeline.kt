@@ -35,6 +35,9 @@ class DestinationPipeline(
     private val metadataFetcher: MetadataFetcher? = null,
     private val backgroundScope: CoroutineScope? = null,
     private val clock: () -> Long = { System.currentTimeMillis() },
+    // Diagnostic: snapshots the process importance / background-network restriction at publish time.
+    // Null in tests; production supplies a probe backed by the app Context. See [ProcessState].
+    private val processStateProbe: (() -> String)? = null,
 ) {
 
     suspend fun ingest(
@@ -100,6 +103,7 @@ class DestinationPipeline(
             false
         }
 
+        processStateProbe?.let { DiagnosticLog.i(TAG, "pre-publish state: ${it()}") }
         val publishResult = try {
             publisher.publishYtMusic(share.form, share.id, title = resolvedTitle, imageUrl = resolvedImageUrl)
             true
@@ -167,6 +171,7 @@ class DestinationPipeline(
             false
         }
 
+        processStateProbe?.let { DiagnosticLog.i(TAG, "pre-publish state: ${it()}") }
         return try {
             publisher.publishWaze(wazeUrl, title = title)
             if (saveOk) IngestResult.Success(title) else IngestResult.SaveFailed(title)
