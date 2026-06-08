@@ -5,11 +5,14 @@ import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.SocketPolicy
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 
@@ -103,5 +106,51 @@ class NtfyPublisherTest {
         val body = JSONObject(req.body.readUtf8())
         assertEquals("radio", body.getString("cmd"))
         assertTrue(!body.has("imageUrl") || body.isNull("imageUrl"))
+    }
+
+    /** Publisher with near-zero backoff so retry tests don't sleep for real seconds. */
+    private fun fastRetryPublisher() = NtfyPublisher(
+        client = OkHttpClient(),
+        base = server.url("").toString().trimEnd('/'),
+        topic = "topic",
+        clock = { 12345L },
+        maxRetries = 3,
+        retryBaseDelayMs = 1L,
+    )
+
+    @Test fun `transient network failure is retried then succeeds`() = runTest {
+        // First attempt: connection dropped (an IOException, like the DNS blip in the wild).
+        server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AT_START))
+        // Second attempt: server is back.
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        fastRetryPublisher().publishYtMusic(Form.SONG, "abc123", title = "T", imageUrl = null)
+
+        assertEquals("should have retried after the dropped connection", 2, server.requestCount)
+    }
+
+    @Test fun `persistent network failure throws NtfyPublishException after exhausting retries`() = runTest {
+        // maxRetries=3 → 4 attempts total, all dropped.
+        repeat(4) { server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AT_START)) }
+
+        try {
+            fastRetryPublisher().publishYtMusic(Form.SONG, "abc123", title = "T", imageUrl = null)
+            fail("expected NtfyPublishException")
+        } catch (e: NtfyPublishException) {
+            assertNotNull(e.cause) // wraps the underlying IOException
+        }
+        assertEquals("1 initial + 3 retries", 4, server.requestCount)
+    }
+
+    @Test fun `non-2xx HTTP is not retried`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(500))
+
+        try {
+            fastRetryPublisher().publishYtMusic(Form.SONG, "abc123", title = "T", imageUrl = null)
+            fail("expected NtfyPublishException")
+        } catch (e: NtfyPublishException) {
+            assertTrue(e.message?.contains("500") == true)
+        }
+        assertEquals("non-2xx is a deliberate signal, not retried", 1, server.requestCount)
     }
 }

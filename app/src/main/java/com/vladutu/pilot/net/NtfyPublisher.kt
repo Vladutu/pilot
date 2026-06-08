@@ -3,6 +3,7 @@ package com.vladutu.pilot.net
 import com.vladutu.pilot.catalog.Form
 import com.vladutu.pilot.diagnostics.DiagnosticLog
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -18,6 +19,8 @@ open class NtfyPublisher(
     private val base: String,
     private val topic: String,
     private val clock: () -> Long = { System.currentTimeMillis() / 1000L },
+    private val maxRetries: Int = 3,
+    private val retryBaseDelayMs: Long = 1_000L,
 ) {
     private val json = "application/json".toMediaType()
 
@@ -88,19 +91,52 @@ open class NtfyPublisher(
             .build()
 
         DiagnosticLog.i(TAG, "publishing cmd=$cmd form=${form.wire} url=$url")
-        try {
-            client.newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) {
-                    DiagnosticLog.w(TAG, "publish non-2xx HTTP ${resp.code}")
-                    throw NtfyPublishException("ntfy returned HTTP ${resp.code}")
+        executeWithRetry(req)
+    }
+
+    /**
+     * Sends [req], retrying transient network failures (DNS hiccups, dropped connections, timeouts)
+     * with exponential backoff. A blip that resolves a second later — the common mobile case —
+     * succeeds silently on the next attempt.
+     *
+     * Two things callers can rely on:
+     *  - Non-2xx HTTP responses are a deliberate signal and are NOT retried.
+     *  - Every failure surfaces as [NtfyPublishException]. Raw [IOException]s (e.g.
+     *    [java.net.UnknownHostException]) are wrapped, so a single `catch (NtfyPublishException)`
+     *    covers all failure modes instead of letting a raw network error escape as an uncaught crash.
+     */
+    private suspend fun executeWithRetry(req: Request) {
+        var attempt = 0
+        while (true) {
+            try {
+                client.newCall(req).execute().use { resp ->
+                    if (!resp.isSuccessful) {
+                        DiagnosticLog.w(TAG, "publish non-2xx HTTP ${resp.code}")
+                        throw NtfyPublishException("ntfy returned HTTP ${resp.code}")
+                    }
+                    DiagnosticLog.i(TAG, "publish ok HTTP ${resp.code}")
                 }
-                DiagnosticLog.i(TAG, "publish ok HTTP ${resp.code}")
+                return
+            } catch (e: IOException) {
+                // Deliberate non-2xx signal — surface immediately, don't retry.
+                if (e is NtfyPublishException) throw e
+                attempt++
+                if (attempt > maxRetries) {
+                    DiagnosticLog.e(
+                        TAG,
+                        "publish failed after $attempt attempts: ${e.javaClass.simpleName}: ${e.message}",
+                        e,
+                    )
+                    throw NtfyPublishException("publish failed after $attempt attempts: ${e.message}", e)
+                }
+                val backoffMs = retryBaseDelayMs shl (attempt - 1)
+                DiagnosticLog.w(
+                    TAG,
+                    "publish attempt $attempt failed (${e.javaClass.simpleName}: ${e.message}), " +
+                        "retrying in ${backoffMs}ms",
+                )
+                delay(backoffMs)
             }
-        } catch (e: IOException) {
-            if (e !is NtfyPublishException) {
-                DiagnosticLog.e(TAG, "publish threw ${e.javaClass.simpleName}: ${e.message}", e)
-            }
-            throw e
         }
     }
 
