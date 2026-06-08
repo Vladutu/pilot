@@ -28,6 +28,12 @@ release on `Vladutu/pilot` with `pilot-0.2.0.apk` attached.
 
 `versionCode` = `major*10000 + minor*100 + patch` (so `0.2.0` -> `200`). Keep minor/patch < 100.
 
+## Verify the installed version
+
+Open Pilot → tap the **ⓘ** (Diagnostics) action in the top bar → the version `vX.Y.Z`
+(the build's `versionName`) shows at the top of the log view. Use it to confirm a device
+picked up a new release. Debug builds read `vX.Y.Z-debug`.
+
 ## Obtainium (each device: phone + car box)
 
 1. Install Obtainium (from its GitHub releases page).

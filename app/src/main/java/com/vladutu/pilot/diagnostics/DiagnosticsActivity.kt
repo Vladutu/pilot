@@ -26,6 +26,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import com.vladutu.pilot.BuildConfig
 import com.vladutu.pilot.ui.theme.PilotTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -112,6 +113,12 @@ private fun DiagnosticsScreen(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.Top,
             ) {
+                Text(
+                    text = "v${BuildConfig.VERSION_NAME}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
                 Text(
                     text = content,
                     fontFamily = FontFamily.Monospace,
