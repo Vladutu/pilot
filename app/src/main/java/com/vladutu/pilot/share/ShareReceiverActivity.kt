@@ -4,9 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
-import com.vladutu.pilot.PilotApp
 import com.vladutu.pilot.diagnostics.DiagnosticLog
-import kotlinx.coroutines.launch
 
 class ShareReceiverActivity : Activity() {
 
@@ -25,35 +23,15 @@ class ShareReceiverActivity : Activity() {
         val subject = intent.getStringExtra(Intent.EXTRA_SUBJECT)
         DiagnosticLog.i(TAG, "urlText=${urlText} subject=${subject}")
 
-        val app = application as PilotApp
+        // Hand off to a foreground service so the ingest keeps the process foreground while it does
+        // network. A bare background coroutine here gets its metered (mobile-data) network starved
+        // once this activity finishes — see ShareIngestService for the full story. We're foreground
+        // right now, so starting the foreground service is permitted even on Android 14.
+        startForegroundService(ShareIngestService.intent(this, urlText, subject))
 
-        app.applicationScope.launch {
-            DiagnosticLog.i(TAG, "ingest coroutine started")
-            val result = try {
-                app.destinationPipeline.ingest(
-                    urlText = urlText,
-                    manualTitle = null,
-                    subject = subject,
-                )
-            } catch (t: Throwable) {
-                DiagnosticLog.e(TAG, "ingest threw ${t.javaClass.simpleName}", t)
-                throw t
-            }
-            DiagnosticLog.i(TAG, "ingest result=${result::class.simpleName} toast=${result.toastText}")
-            showToastFromAppContext(result.toastText)
-        }
         Toast.makeText(this, "Sending...", Toast.LENGTH_SHORT).show()
-        DiagnosticLog.i(TAG, "finish() — activity destroyed, coroutine continues on applicationScope")
+        DiagnosticLog.i(TAG, "finish() — ingest handed off to ShareIngestService")
         finish()
-    }
-
-    private fun showToastFromAppContext(text: String) {
-        val app = application as PilotApp
-        app.applicationScope.launch {
-            android.os.Handler(mainLooper).post {
-                Toast.makeText(app, text, Toast.LENGTH_SHORT).show()
-            }
-        }
     }
 
     private companion object {
