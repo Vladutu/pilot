@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # Application dependencies (reads gradle/libs.versions.toml + build.gradle.kts)
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+
+  # Keep the CI workflow actions patched too
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "github-actions"
