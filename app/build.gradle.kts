@@ -1,4 +1,5 @@
 import java.util.Properties
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
@@ -9,7 +10,9 @@ plugins {
 
 android {
     namespace = "com.vladutu.pilot"
-    compileSdk = 34
+    // compileSdk can move ahead freely; targetSdk stays 34 on purpose — raising it
+    // changes runtime behavior (stricter background-activity-launch rules etc.).
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.vladutu.pilot"
@@ -57,9 +60,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
     buildFeatures {
         compose = true
         buildConfig = true
@@ -69,6 +69,12 @@ android {
     }
     testOptions {
         unitTests.isReturnDefaultValues = true
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 

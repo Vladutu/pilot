@@ -41,8 +41,8 @@ Merging to `master` only runs CI — it does not publish anything. Releases stay
 - `local.properties` is gitignored; on CI the Android SDK comes preinstalled on
   `ubuntu-latest` and AGP finds it via `ANDROID_HOME`, no setup step needed.
 - Dependabot's `gradle` ecosystem reads `gradle/libs.versions.toml`, so catalog-managed
-  versions (AGP, Kotlin, Compose BOM, OkHttp, …) are all covered. It does **not** update
-  the Gradle wrapper itself — keep using `make wrapper` for that occasionally.
+  versions (AGP, Kotlin, Compose BOM, OkHttp, …) are all covered. It also bumps the
+  Gradle wrapper (`gradle-wrapper.properties`) — verified 2026-06-10.
 - Lint runs without a baseline: every lint **error** fails CI (warnings don't). If a
   dependency bump ever introduces an unfixable false positive, prefer a targeted
   `@SuppressLint("...")` at the call site over a baseline file.
