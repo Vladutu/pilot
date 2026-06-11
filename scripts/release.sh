@@ -53,7 +53,7 @@ fi
 
 # --- test ---
 echo "==> unit tests"
-./gradlew --no-daemon testReleaseUnitTest
+./gradlew --no-daemon testDebugUnitTest
 
 # --- build ---
 echo "==> assembleRelease ($VERSION / code $VCODE)"
