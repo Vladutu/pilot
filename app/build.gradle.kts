@@ -1,9 +1,8 @@
 import java.util.Properties
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
+    // Kotlin compilation is built into AGP since 9.0 — no kotlin.android plugin.
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
@@ -12,7 +11,7 @@ android {
     namespace = "com.vladutu.pilot"
     // compileSdk can move ahead freely; targetSdk stays 34 on purpose — raising it
     // changes runtime behavior (stricter background-activity-launch rules etc.).
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.vladutu.pilot"
@@ -69,12 +68,6 @@ android {
     }
     testOptions {
         unitTests.isReturnDefaultValues = true
-    }
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
