@@ -51,6 +51,7 @@ import com.vladutu.pilot.diagnostics.DiagnosticLog
 import com.vladutu.pilot.net.NtfyPublisher
 import com.vladutu.pilot.radio.RadioCatalog
 import com.vladutu.pilot.share.MapsNavUrlBuilder
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -158,6 +159,10 @@ fun CategoryListScreen(
                                             store.touch(entry.form, entry.id)
                                             gridState.animateScrollToItem(0)
                                             snackbar.showSnackbar("Sent: ${entry.title}")
+                                        } catch (e: CancellationException) {
+                                            // screen left composition mid-flow (back press / app
+                                            // backgrounded) — not a publish failure
+                                            throw e
                                         } catch (e: Exception) {
                                             DiagnosticLog.e("Tap", "tap publish failed (${e.javaClass.simpleName})", e)
                                             publishStatus.markFailed()
@@ -193,6 +198,8 @@ fun CategoryListScreen(
                                                     store.touch(target.form, target.id)
                                                     gridState.animateScrollToItem(0)
                                                     snackbar.showSnackbar("Sent as Maps: ${target.title}")
+                                                } catch (e: CancellationException) {
+                                                    throw e
                                                 } catch (e: Exception) {
                                                     publishStatus.markFailed()
                                                     snackbar.showSnackbar("Send failed — check connection")
@@ -248,6 +255,8 @@ fun CategoryListScreen(
                                 val result = pipeline.ingest(urlText = urlText, manualTitle = manualTitle, subject = null)
                                 snackbar.showSnackbar(result.toastText)
                             }
+                        } catch (t: CancellationException) {
+                            throw t
                         } catch (t: Throwable) {
                             DiagnosticLog.e("AddUrl", "manual add threw ${t.javaClass.simpleName}", t)
                             snackbar.showSnackbar("Add failed — check log")

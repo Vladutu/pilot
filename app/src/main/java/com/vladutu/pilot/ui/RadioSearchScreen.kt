@@ -49,6 +49,7 @@ import com.vladutu.pilot.meta.MetadataFetcher
 import com.vladutu.pilot.radio.RadioBrowserClient
 import com.vladutu.pilot.radio.RadioCatalog
 import com.vladutu.pilot.radio.RadioStation
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 private sealed interface SearchState {
@@ -78,6 +79,8 @@ fun RadioSearchScreen(
         state = try {
             // lastCheckOk pre-filter (spec §8): hidebroken already drops dead streams; keep verified ones.
             SearchState.Loaded(client.searchRomania(q).filter { it.lastCheckOk })
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             DiagnosticLog.w("RadioSearch", "search failed", e)
             SearchState.Error("Couldn't load stations. Check your connection and retry.")
