@@ -20,6 +20,7 @@ class MainActivity : ComponentActivity() {
                     PilotNavHost(
                         publisher = app.ntfyPublisher,
                         store = app.catalogStore,
+                        discoverStore = app.discoverCategoryStore,
                         metadataFetcher = app.metadataFetcher,
                         pipeline = app.destinationPipeline,
                         publishStatus = app.publishStatus,

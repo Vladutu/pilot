@@ -8,6 +8,7 @@ import com.vladutu.pilot.catalog.CatalogStore
 import com.vladutu.pilot.config.Config
 import com.vladutu.pilot.destination.DestinationPipeline
 import com.vladutu.pilot.diagnostics.DiagnosticLog
+import com.vladutu.pilot.discover.DiscoverCategoryStore
 import com.vladutu.pilot.meta.MetadataFetcher
 import com.vladutu.pilot.net.NtfyPublisher
 import com.vladutu.pilot.share.MapsToWazeConverter
@@ -19,6 +20,7 @@ import kotlinx.coroutines.SupervisorJob
 import okhttp3.OkHttpClient
 
 private val Application.catalogDataStore: DataStore<Preferences> by preferencesDataStore(name = "catalog")
+private val Application.discoverDataStore: DataStore<Preferences> by preferencesDataStore(name = "discover_categories")
 
 class PilotApp : Application() {
 
@@ -39,6 +41,8 @@ class PilotApp : Application() {
     val httpClient: OkHttpClient by lazy { OkHttpClient() }
 
     val catalogStore: CatalogStore by lazy { CatalogStore(catalogDataStore) }
+
+    val discoverCategoryStore: DiscoverCategoryStore by lazy { DiscoverCategoryStore(discoverDataStore) }
 
     val ntfyPublisher: NtfyPublisher by lazy {
         NtfyPublisher(client = httpClient, base = Config.NTFY_BASE, topic = Config.NTFY_TOPIC)

@@ -30,7 +30,7 @@ open class NtfyPublisher(
         }
         postEnvelope(
             cmd = "ytmusic",
-            form = form,
+            formWire = form.wire,
             url = ytMusicUrl(form, id),
             title = title,
             imageUrl = imageUrl,
@@ -40,7 +40,7 @@ open class NtfyPublisher(
     open suspend fun publishWaze(url: String, title: String?) {
         postEnvelope(
             cmd = "waze",
-            form = Form.DESTINATION,
+            formWire = Form.DESTINATION.wire,
             url = url,
             title = title,
             imageUrl = null,
@@ -50,7 +50,7 @@ open class NtfyPublisher(
     open suspend fun publishMaps(url: String, title: String?) {
         postEnvelope(
             cmd = "maps",
-            form = Form.DESTINATION,
+            formWire = Form.DESTINATION.wire,
             url = url,
             title = title,
             imageUrl = null,
@@ -60,17 +60,26 @@ open class NtfyPublisher(
     open suspend fun publishRadio(streamUrl: String, title: String?, imageUrl: String?) {
         postEnvelope(
             cmd = "radio",
-            form = Form.RADIO,
+            formWire = Form.RADIO.wire,
             url = streamUrl,
             title = title,
             imageUrl = imageUrl,
         )
     }
 
+    /**
+     * Sync one Discover keyword to the headunit. Delivery is live-only by design
+     * (Copilot's 30s staleness window): if the car is off, re-send by tapping the
+     * category in the Discover list.
+     */
+    open suspend fun publishCategory(keyword: String) {
+        postEnvelope(cmd = "category", formWire = "category", url = null, title = keyword, imageUrl = null)
+    }
+
     private suspend fun postEnvelope(
         cmd: String,
-        form: Form,
-        url: String,
+        formWire: String,
+        url: String?,
         title: String?,
         imageUrl: String?,
     ) = withContext(Dispatchers.IO) {
@@ -78,8 +87,8 @@ open class NtfyPublisher(
             put("v", SCHEMA_VERSION)
             put("ts", clock())
             put("cmd", cmd)
-            put("form", form.wire)
-            put("url", url)
+            put("form", formWire)
+            url?.let { put("url", it) }
             title?.let { put("title", it) }
             imageUrl?.let { put("imageUrl", it) }
         }.toString()
@@ -90,7 +99,7 @@ open class NtfyPublisher(
             .post(payload.toRequestBody(json))
             .build()
 
-        DiagnosticLog.i(TAG, "publishing cmd=$cmd form=${form.wire} url=$url")
+        DiagnosticLog.i(TAG, "publishing cmd=$cmd form=$formWire url=$url")
         executeWithRetry(req)
     }
 

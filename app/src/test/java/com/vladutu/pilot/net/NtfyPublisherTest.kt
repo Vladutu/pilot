@@ -153,4 +153,18 @@ class NtfyPublisherTest {
         }
         assertEquals("non-2xx is a deliberate signal, not retried", 1, server.requestCount)
     }
+
+    @Test fun `publishCategory sends keyword in title with no url`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200))
+        publisher.publishCategory("Workout")
+        val req = server.takeRequest()
+        val body = JSONObject(req.body.readUtf8())
+        assertEquals(3, body.getInt("v"))
+        assertEquals(12345L, body.getLong("ts"))
+        assertEquals("category", body.getString("cmd"))
+        assertEquals("category", body.getString("form"))
+        assertEquals("Workout", body.getString("title"))
+        assertFalse(body.has("url"))
+        assertFalse(body.has("imageUrl"))
+    }
 }

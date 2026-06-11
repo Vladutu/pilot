@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import com.vladutu.pilot.catalog.CatalogStore
 import com.vladutu.pilot.catalog.Form
 import com.vladutu.pilot.destination.DestinationPipeline
+import com.vladutu.pilot.discover.DiscoverCategoryStore
 import com.vladutu.pilot.meta.MetadataFetcher
 import com.vladutu.pilot.net.NtfyPublisher
 import com.vladutu.pilot.radio.RadioBrowserClient
@@ -17,12 +18,14 @@ private sealed interface PilotRoute {
     data object Home : PilotRoute
     data class Category(val form: Form) : PilotRoute
     data object RadioSearch : PilotRoute
+    data object DiscoverCategories : PilotRoute
 }
 
 @Composable
 fun PilotNavHost(
     publisher: NtfyPublisher,
     store: CatalogStore,
+    discoverStore: DiscoverCategoryStore,
     metadataFetcher: MetadataFetcher,
     pipeline: DestinationPipeline,
     publishStatus: PublishStatusHolder,
@@ -42,6 +45,7 @@ fun PilotNavHost(
         is PilotRoute.Home -> HomeHub(
             publishStatus = publishStatus,
             onOpenCategory = { route = PilotRoute.Category(it) },
+            onOpenDiscover = { route = PilotRoute.DiscoverCategories },
         )
         is PilotRoute.Category -> CategoryListScreen(
             form = r.form,
@@ -57,6 +61,12 @@ fun PilotNavHost(
             store = store,
             metadataFetcher = metadataFetcher,
             onBack = { route = PilotRoute.Category(Form.RADIO) },
+        )
+        is PilotRoute.DiscoverCategories -> DiscoverCategoriesScreen(
+            publisher = publisher,
+            store = discoverStore,
+            publishStatus = publishStatus,
+            onBack = { route = PilotRoute.Home },
         )
     }
 }

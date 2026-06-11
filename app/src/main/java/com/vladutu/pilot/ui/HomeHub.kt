@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Place
@@ -53,6 +54,7 @@ private val CATEGORIES = listOf(
 fun HomeHub(
     publishStatus: PublishStatusHolder,
     onOpenCategory: (Form) -> Unit,
+    onOpenDiscover: () -> Unit,
 ) {
     val context = LocalContext.current
     Scaffold(
@@ -84,36 +86,48 @@ fun HomeHub(
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
             items(items = CATEGORIES, key = { it.form.name }) { spec ->
-                Card(
-                    shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        contentColor = MaterialTheme.colorScheme.onSurface,
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                        .clickable { onOpenCategory(spec.form) },
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize().padding(16.dp),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Icon(
-                            imageVector = spec.icon,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(64.dp).padding(bottom = 12.dp),
-                        )
-                        Text(
-                            text = spec.label,
-                            style = MaterialTheme.typography.titleLarge,
-                            textAlign = TextAlign.Center,
-                        )
-                    }
-                }
+                HubTile(label = spec.label, icon = spec.icon, onClick = { onOpenCategory(spec.form) })
             }
+            item(key = "discover") {
+                HubTile(label = "Discover", icon = Icons.Filled.Explore, onClick = onOpenDiscover)
+            }
+        }
+    }
+}
+
+@Composable
+private fun HubTile(
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+) {
+    Card(
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .clickable(onClick = onClick),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(16.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(64.dp).padding(bottom = 12.dp),
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleLarge,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }
