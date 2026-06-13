@@ -8,6 +8,7 @@ import com.vladutu.pilot.meta.MetadataFetcher
 import com.vladutu.pilot.net.NtfyPublishException
 import com.vladutu.pilot.net.NtfyPublisher
 import com.vladutu.pilot.share.ClassifiedShare
+import com.vladutu.pilot.share.MapsResolver
 import com.vladutu.pilot.share.MapsToWazeConverter
 import com.vladutu.pilot.share.UrlClassifier
 import com.vladutu.pilot.share.WazeConversionException
@@ -30,6 +31,9 @@ import java.net.URLDecoder
  */
 class DestinationPipeline(
     private val converter: MapsToWazeConverter,
+    // Primary, on-device Maps→Waze resolver. Null disables it (the converter is then used directly),
+    // which keeps the original behavior for tests that don't wire one. Production always supplies it.
+    private val inAppResolver: MapsResolver? = null,
     private val catalogStore: CatalogStore,
     private val publisher: NtfyPublisher,
     private val metadataFetcher: MetadataFetcher? = null,
@@ -124,13 +128,28 @@ class DestinationPipeline(
         classified: ClassifiedShare,
         manualTitle: String?,
     ): IngestResult {
+        // Title source defaults to the raw shared URL; an in-app resolution upgrades it to the
+        // resolved URL, which usually carries a /place/<Name>/ segment for a real title.
+        var titleSourceUrl: String? = (classified as? ClassifiedShare.MapsShare)?.rawUrl
+
         val wazeUrl: String = when (classified) {
             is ClassifiedShare.MapsShare -> {
-                try {
-                    converter.convert(classified.rawUrl)
-                } catch (e: WazeConversionException) {
-                    DiagnosticLog.w(TAG, "conversion failed", e)
-                    return classifyConversionError(e)
+                // In-app resolver is primary: running on-device (residential IP + browser UA + GET)
+                // gets a clean coordinate URL out of Google far more reliably than the papko service
+                // (datacenter IP + python-requests + HEAD), which is why papko intermittently 200s.
+                // Fall back to papko only on an in-app miss (no coords in the resolved URL — e.g. an
+                // opaque place-id link needing the Places API — or a network failure).
+                val inApp = inAppResolver?.resolve(classified.rawUrl)
+                if (inApp != null) {
+                    titleSourceUrl = inApp.resolvedUrl
+                    inApp.wazeUrl
+                } else {
+                    try {
+                        converter.convert(classified.rawUrl)
+                    } catch (e: WazeConversionException) {
+                        DiagnosticLog.w(TAG, "conversion failed", e)
+                        return classifyConversionError(e)
+                    }
                 }
             }
             is ClassifiedShare.WazeShare -> {
@@ -150,7 +169,7 @@ class DestinationPipeline(
         val title = resolveTitle(
             manualTitle = manualTitle,
             shareProvisionalTitle = classified.provisionalTitle,
-            rawUrl = (classified as? ClassifiedShare.MapsShare)?.rawUrl,
+            rawUrl = titleSourceUrl,
             wazeUrl = wazeUrl,
         )
 

@@ -5,6 +5,8 @@ import com.vladutu.pilot.catalog.CatalogStore
 import com.vladutu.pilot.catalog.Form
 import com.vladutu.pilot.net.NtfyPublishException
 import com.vladutu.pilot.net.NtfyPublisher
+import com.vladutu.pilot.share.MapsResolution
+import com.vladutu.pilot.share.MapsResolver
 import com.vladutu.pilot.share.MapsToWazeConverter
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
@@ -292,6 +294,56 @@ class DestinationPipelineTest {
         assertEquals("Park", (result as IngestResult.SaveAndPublishFailed).title)
         assertEquals(0, savedEntries.size)
         assertTrue(publisher.publishedWaze.isEmpty())
+    }
+
+    // --- in-app resolver (primary) ---------------------------------------------------------------
+
+    private fun pipelineWith(resolver: MapsResolver): DestinationPipeline = DestinationPipeline(
+        converter = MapsToWazeConverter(OkHttpClient(), converterServer.url("/").toString()),
+        inAppResolver = resolver,
+        catalogStore = catalogStore,
+        publisher = publisher,
+        clock = { 1_700_000_000_000L },
+    )
+
+    @Test
+    fun ingest_mapsUrl_usesInAppResolver_andSkipsConverter() = runBlocking {
+        val resolved = "https://www.google.com/maps/place/Brandenburg+Gate/@52.5,13.4,17z/"
+        val inApp = object : MapsResolver {
+            override suspend fun resolve(googleMapsUrl: String) =
+                MapsResolution(wazeUrl = wazeUrl, resolvedUrl = resolved)
+        }
+
+        val result = pipelineWith(inApp).ingest(
+            urlText = "https://maps.app.goo.gl/abc123",
+            manualTitle = null,
+            subject = null, // no title hint → must come from the resolved /place/<Name>/
+        )
+
+        assertTrue("expected Success, got $result", result is IngestResult.Success)
+        assertEquals(0, converterServer.requestCount) // papko NOT contacted
+        assertEquals(wazeUrl, savedEntries[0].id)
+        assertEquals("Brandenburg Gate", savedEntries[0].title) // title upgraded from resolved url
+        // original shared link is preserved as the canonical Maps URL
+        assertEquals("https://maps.app.goo.gl/abc123", savedEntries[0].googleMapsUrl)
+    }
+
+    @Test
+    fun ingest_mapsUrl_fallsBackToConverter_whenInAppReturnsNull() = runBlocking {
+        val inApp = object : MapsResolver {
+            override suspend fun resolve(googleMapsUrl: String): MapsResolution? = null
+        }
+        converterServer.enqueue(MockResponse().setResponseCode(302).setHeader("Location", wazeUrl))
+
+        val result = pipelineWith(inApp).ingest(
+            urlText = "https://maps.app.goo.gl/abc123",
+            manualTitle = null,
+            subject = null,
+        )
+
+        assertTrue("expected Success, got $result", result is IngestResult.Success)
+        assertEquals(1, converterServer.requestCount) // fell back to papko
+        assertEquals(wazeUrl, savedEntries[0].id)
     }
 
     private class FakeCatalogStore(val backing: MutableList<CatalogEntry>) : CatalogStore(FAKE_DATASTORE) {

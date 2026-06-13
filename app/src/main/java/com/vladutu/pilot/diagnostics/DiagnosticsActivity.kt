@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -17,6 +19,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,16 +30,19 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import com.vladutu.pilot.BuildConfig
+import com.vladutu.pilot.PilotApp
 import com.vladutu.pilot.ui.theme.PilotTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 
 class DiagnosticsActivity : ComponentActivity() {
 
@@ -48,6 +54,10 @@ class DiagnosticsActivity : ComponentActivity() {
                     DiagnosticsScreen(
                         onBack = { finish() },
                         onShare = ::shareLog,
+                        statsSummary = { ResolverStats.summary() },
+                        runSelfTest = {
+                            ResolverSelfTest.run((application as PilotApp).inAppMapsResolver).text
+                        },
                     )
                 }
             }
@@ -69,8 +79,14 @@ class DiagnosticsActivity : ComponentActivity() {
 private fun DiagnosticsScreen(
     onBack: () -> Unit,
     onShare: (String) -> Unit,
+    statsSummary: () -> String,
+    runSelfTest: suspend () -> String,
 ) {
+    val scope = rememberCoroutineScope()
     var content by remember { mutableStateOf(DiagnosticLog.read()) }
+    var stats by remember { mutableStateOf(statsSummary()) }
+    var selfTestResult by remember { mutableStateOf<String?>(null) }
+    var selfTestRunning by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -88,7 +104,7 @@ private fun DiagnosticsScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { content = DiagnosticLog.read() }) {
+                    IconButton(onClick = { content = DiagnosticLog.read(); stats = statsSummary() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
                     IconButton(onClick = { onShare(content) }) {
@@ -119,6 +135,44 @@ private fun DiagnosticsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
+
+                Text(
+                    text = stats,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Button(
+                    enabled = !selfTestRunning,
+                    onClick = {
+                        selfTestRunning = true
+                        scope.launch {
+                            selfTestResult = try {
+                                runSelfTest()
+                            } catch (e: Exception) {
+                                "Self-test error: ${e.message}"
+                            }
+                            selfTestRunning = false
+                            // refresh the log + counters with what the self-test just produced
+                            content = DiagnosticLog.read()
+                            stats = statsSummary()
+                        }
+                    },
+                    modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+                ) {
+                    Text(if (selfTestRunning) "Running self-test…" else "Run resolver self-test")
+                }
+                selfTestResult?.let { result ->
+                    Text(
+                        text = result,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        lineHeight = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+
                 Text(
                     text = content,
                     fontFamily = FontFamily.Monospace,

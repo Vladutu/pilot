@@ -66,9 +66,14 @@ class PilotApp : Application() {
         MapsToWazeConverter(client = httpClient, endpoint = Config.WAZE_CONVERTER_URL)
     }
 
+    val inAppMapsResolver: com.vladutu.pilot.share.InAppMapsToWazeResolver by lazy {
+        com.vladutu.pilot.share.InAppMapsToWazeResolver(client = httpClient)
+    }
+
     val destinationPipeline: DestinationPipeline by lazy {
         DestinationPipeline(
             converter = mapsToWazeConverter,
+            inAppResolver = inAppMapsResolver,
             catalogStore = catalogStore,
             publisher = ntfyPublisher,
             metadataFetcher = metadataFetcher,
