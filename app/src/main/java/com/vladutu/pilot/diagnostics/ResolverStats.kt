@@ -17,9 +17,10 @@ import java.util.concurrent.atomic.AtomicInteger
 object ResolverStats {
 
     enum class Outcome {
-        IN_APP_FAST,        // coordinates already in the shared URL, no network needed
+        IN_APP_FAST,        // coordinates already in the shared URL / subject, no network needed
         IN_APP_NETWORK,     // coordinates found after following redirects
-        FALLBACK_NO_COORDS, // fetched ok but no coords → fell back to converter (format-drift signal)
+        FALLBACK_NO_COORDS, // fetched ok but no coords and no place-id → THE format-drift signal
+        FALLBACK_PLACE_ID,  // resolved URL had only a place-id/ftid (no lat,lng) → needs Places API (papko)
         FALLBACK_NETWORK,   // network / bad-URL failure → fell back to converter (benign)
     }
 
@@ -39,11 +40,12 @@ object ResolverStats {
     fun summary(): String {
         val inApp = count(Outcome.IN_APP_FAST) + count(Outcome.IN_APP_NETWORK)
         val noCoords = count(Outcome.FALLBACK_NO_COORDS)
+        val placeId = count(Outcome.FALLBACK_PLACE_ID)
         val netFail = count(Outcome.FALLBACK_NETWORK)
-        val total = inApp + noCoords + netFail
+        val total = inApp + noCoords + placeId + netFail
         if (total == 0) return "Maps resolver: no resolutions yet"
         return "Maps resolver: $inApp/$total in-app " +
             "(fast ${count(Outcome.IN_APP_FAST)}, net ${count(Outcome.IN_APP_NETWORK)}) · " +
-            "fallback: $noCoords no-coords, $netFail net-fail"
+            "fallback: $placeId place-id, $noCoords no-coords, $netFail net-fail"
     }
 }

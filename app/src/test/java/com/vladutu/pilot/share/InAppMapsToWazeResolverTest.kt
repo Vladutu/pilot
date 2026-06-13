@@ -58,6 +58,18 @@ class InAppMapsToWazeResolverTest {
     }
 
     @Test
+    fun resolve_recordsPlaceId_whenResolvedUrlHasPlaceIdButNoCoords() = runBlocking {
+        // Carrefour-style: resolved URL carries a place-id/ftid but no lat,lng → needs Places API.
+        val placeUrl = "/maps/place/Carrefour/data=!4m2!3m1!1s0x4752fcc826cf2bb3:0xa4b68c74d051c040!18m1"
+        server.enqueue(MockResponse().setResponseCode(302).setHeader("Location", server.url(placeUrl).toString()))
+        server.enqueue(MockResponse().setResponseCode(200).setBody("<html>place</html>"))
+
+        assertNull(resolver.resolve(server.url("/abc").toString()))
+        assertEquals(1, ResolverStats.count(ResolverStats.Outcome.FALLBACK_PLACE_ID))
+        assertEquals(0, ResolverStats.count(ResolverStats.Outcome.FALLBACK_NO_COORDS))
+    }
+
+    @Test
     fun resolve_usesFastPath_whenSharedUrlAlreadyHasCoords() = runBlocking {
         val shared = "https://www.google.com/maps/place/X/@52.5,13.4,17z/data=!3d52.5162746!4d13.3777041"
 

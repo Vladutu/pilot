@@ -62,8 +62,13 @@ class InAppMapsToWazeResolver(
 
         val coords = MapsCoordinateExtractor.extract(resolvedUrl)
         if (coords == null) {
-            DiagnosticLog.i(TAG, "no coords in resolved url, falling back to converter: $resolvedUrl")
-            ResolverStats.record(ResolverStats.Outcome.FALLBACK_NO_COORDS)
+            // A place-id/ftid (no lat,lng) is a legitimate Places-API job for the converter — NOT a
+            // format change. Only a resolved URL with neither coords nor a place-id signals drift.
+            val placeIdOnly = PLACE_ID_PATTERN.containsMatchIn(resolvedUrl)
+            val outcome = if (placeIdOnly) ResolverStats.Outcome.FALLBACK_PLACE_ID
+            else ResolverStats.Outcome.FALLBACK_NO_COORDS
+            DiagnosticLog.i(TAG, "no coords (${if (placeIdOnly) "place-id" else "none"}), falling back: $resolvedUrl")
+            ResolverStats.record(outcome)
             return@withContext null
         }
         DiagnosticLog.i(TAG, "in-app resolved coords from $resolvedUrl")
@@ -96,6 +101,11 @@ class InAppMapsToWazeResolver(
 
     private companion object {
         const val TAG = "InAppMapsResolver"
+
+        // Google place-id / feature-id markers: "!1s0x..:0x..", or ?ftid=/?cid=. Their presence (with
+        // no lat,lng) means the destination needs the Places API, which only the converter has.
+        val PLACE_ID_PATTERN = Regex("""0x[0-9a-fA-F]+:0x[0-9a-fA-F]+|[?&](?:cid|ftid)=""")
+
         const val BROWSER_UA =
             "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) " +
                 "Chrome/124.0.0.0 Mobile Safari/537.36"
