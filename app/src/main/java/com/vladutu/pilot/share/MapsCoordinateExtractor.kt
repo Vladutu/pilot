@@ -16,8 +16,13 @@ import java.util.Locale
  *                              papko's comma-based regex misses these (no comma between the numbers),
  *                              which is exactly why it has to fall back to the Places API for place
  *                              links; reading them directly lets us resolve those links on-device.
- *  2. decimal `lat,lng`      — `/maps/search/<lat>,<lng>` and the `@<lat>,<lng>` camera center.
- *  3. DMS `D°M'S"N D°M'S"E`   — the `%C2%B0`-encoded degree/minute/second form.
+ *  2. decimal `lat,lng`      — `/maps/search/<lat>,<lng>`, `?q=<lat>,<lng>`, the `@<lat>,<lng>` camera.
+ *  3. DMS `D°M'S"N D°M'S"E`   — both the literal form (as it appears in a share **subject**) and the
+ *                              `%C2%B0`/`%22`-encoded URL form.
+ *
+ * Works on URLs and on free text (e.g. the share subject Google Maps fills with the destination).
+ * Each strategy skips matches that fail lat/lng range validation and tries the next, so noise like
+ * a viewport size or an out-of-range number can't mask a real later match.
  *
  * Coordinates are emitted as canonical decimal strings (locale-independent), already URL-safe.
  */
@@ -34,33 +39,31 @@ object MapsCoordinateExtractor {
     // strings like "44.116698,+24.186381".
     private val DECIMAL_PAIR = Regex("""([-+]?\d+\.\d+),\+?([-+]?\d+\.\d+)""")
 
-    // DMS form, e.g. "40%C2%B044'54.3%22N+73%C2%B059'08.4%22W".
-    // %C2%B0 = '°', '\'' or %27 = minutes, '"' or %22 = seconds.
+    // DMS form. Degree symbol may be literal '°' (share subject) or '%C2%B0' (URL); seconds
+    // terminator '"' or '%22'; lat/lng separated by spaces (subject) or '+' (URL).
+    // e.g. "44°07'29.5\"N 24°17'13.5\"E"  or  "40%C2%B044'54.3%22N+73%C2%B059'08.4%22W".
     private val DMS = Regex(
-        """(\d+)%C2%B0(\d+)(?:'|%27)(\d+(?:\.\d+)?)(?:"|%22)([NS])""" +
-            """\+?(\d+)%C2%B0(\d+)(?:'|%27)(\d+(?:\.\d+)?)(?:"|%22)([EW])"""
+        """(\d+)(?:°|%C2%B0)(\d+)(?:'|%27)(\d+(?:\.\d+)?)(?:"|%22)([NS])""" +
+            """[\s+]*(\d+)(?:°|%C2%B0)(\d+)(?:'|%27)(\d+(?:\.\d+)?)(?:"|%22)([EW])"""
     )
 
-    fun extract(url: String): LatLng? =
-        fromDataBlock(url) ?: fromDecimalPair(url) ?: fromDms(url)
+    fun extract(text: String): LatLng? =
+        fromDataBlock(text) ?: fromDecimalPair(text) ?: fromDms(text)
 
-    private fun fromDataBlock(url: String): LatLng? {
-        val m = DATA_BLOCK.find(url) ?: return null
-        return validated(m.groupValues[1], m.groupValues[2])
-    }
+    private fun fromDataBlock(text: String): LatLng? =
+        DATA_BLOCK.findAll(text).firstNotNullOfOrNull { validated(it.groupValues[1], it.groupValues[2]) }
 
-    private fun fromDecimalPair(url: String): LatLng? {
-        val m = DECIMAL_PAIR.find(url) ?: return null
-        return validated(m.groupValues[1], m.groupValues[2])
-    }
+    private fun fromDecimalPair(text: String): LatLng? =
+        DECIMAL_PAIR.findAll(text).firstNotNullOfOrNull { validated(it.groupValues[1], it.groupValues[2]) }
 
-    private fun fromDms(url: String): LatLng? {
-        val m = DMS.find(url) ?: return null
-        val g = m.groupValues
-        val lat = dmsToDecimal(g[1], g[2], g[3], g[4] == "S")
-        val lng = dmsToDecimal(g[5], g[6], g[7], g[8] == "W")
-        return validated(format6(lat), format6(lng))
-    }
+    private fun fromDms(text: String): LatLng? =
+        DMS.findAll(text).firstNotNullOfOrNull {
+            val g = it.groupValues
+            validated(
+                format6(dmsToDecimal(g[1], g[2], g[3], negative = g[4] == "S")),
+                format6(dmsToDecimal(g[5], g[6], g[7], negative = g[8] == "W")),
+            )
+        }
 
     private fun dmsToDecimal(deg: String, min: String, sec: String, negative: Boolean): Double {
         val value = deg.toDouble() + min.toDouble() / 60.0 + sec.toDouble() / 3600.0

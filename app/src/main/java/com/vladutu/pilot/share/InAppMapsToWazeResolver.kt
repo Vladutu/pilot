@@ -29,8 +29,18 @@ class InAppMapsToWazeResolver(
     private val callTimeoutSec: Long = 10L,
 ) : MapsResolver {
 
-    override suspend fun resolve(googleMapsUrl: String): MapsResolution? = withContext(Dispatchers.IO) {
-        // Fast path: a shared long /maps URL may already carry coordinates — no network needed.
+    override suspend fun resolve(googleMapsUrl: String, hints: List<String>): MapsResolution? = withContext(Dispatchers.IO) {
+        // Fast path 1: the share subject often already carries the destination (e.g. literal DMS
+        // "44°07'29.5\"N 24°17'13.5\"E") — Google fills it in. No network, no link-format fragility.
+        for (hint in hints) {
+            MapsCoordinateExtractor.extract(hint)?.let { coords ->
+                DiagnosticLog.i(TAG, "resolved from share hint without network")
+                ResolverStats.record(ResolverStats.Outcome.IN_APP_FAST)
+                return@withContext MapsResolution(buildWazeUrl(coords), googleMapsUrl)
+            }
+        }
+
+        // Fast path 2: a shared long /maps URL may already carry coordinates — no network needed.
         MapsCoordinateExtractor.extract(googleMapsUrl)?.let { coords ->
             DiagnosticLog.i(TAG, "resolved from shared url without network")
             ResolverStats.record(ResolverStats.Outcome.IN_APP_FAST)

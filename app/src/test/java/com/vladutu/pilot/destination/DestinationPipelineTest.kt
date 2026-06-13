@@ -5,6 +5,7 @@ import com.vladutu.pilot.catalog.CatalogStore
 import com.vladutu.pilot.catalog.Form
 import com.vladutu.pilot.net.NtfyPublishException
 import com.vladutu.pilot.net.NtfyPublisher
+import com.vladutu.pilot.share.InAppMapsToWazeResolver
 import com.vladutu.pilot.share.MapsResolution
 import com.vladutu.pilot.share.MapsResolver
 import com.vladutu.pilot.share.MapsToWazeConverter
@@ -310,7 +311,7 @@ class DestinationPipelineTest {
     fun ingest_mapsUrl_usesInAppResolver_andSkipsConverter() = runBlocking {
         val resolved = "https://www.google.com/maps/place/Brandenburg+Gate/@52.5,13.4,17z/"
         val inApp = object : MapsResolver {
-            override suspend fun resolve(googleMapsUrl: String) =
+            override suspend fun resolve(googleMapsUrl: String, hints: List<String>) =
                 MapsResolution(wazeUrl = wazeUrl, resolvedUrl = resolved)
         }
 
@@ -329,9 +330,35 @@ class DestinationPipelineTest {
     }
 
     @Test
+    fun ingest_gooGlMapsUrl_resolvesFromSubjectCoords_withoutConverter() = runBlocking {
+        // Repro of the real failure: goo.gl/maps URL resolution yields no coords, but the share
+        // subject carries them as literal DMS. The real resolver should resolve from the hint.
+        val pipeline = DestinationPipeline(
+            converter = MapsToWazeConverter(OkHttpClient(), converterServer.url("/").toString()),
+            inAppResolver = InAppMapsToWazeResolver(OkHttpClient(), callTimeoutSec = 5L),
+            catalogStore = catalogStore,
+            publisher = publisher,
+            clock = { 1_700_000_000_000L },
+        )
+
+        val result = pipeline.ingest(
+            urlText = "https://goo.gl/maps/o651952buFBbwHGq5",
+            manualTitle = null,
+            subject = "44°07'29.5\"N 24°17'13.5\"E",
+        )
+
+        assertTrue("expected Success, got $result", result is IngestResult.Success)
+        assertEquals(0, converterServer.requestCount) // never touched the network/papko
+        assertEquals(
+            "https://ul.waze.com/ul?ll=44.124861%2C24.287083&navigate=yes",
+            savedEntries[0].id,
+        )
+    }
+
+    @Test
     fun ingest_mapsUrl_fallsBackToConverter_whenInAppReturnsNull() = runBlocking {
         val inApp = object : MapsResolver {
-            override suspend fun resolve(googleMapsUrl: String): MapsResolution? = null
+            override suspend fun resolve(googleMapsUrl: String, hints: List<String>): MapsResolution? = null
         }
         converterServer.enqueue(MockResponse().setResponseCode(302).setHeader("Location", wazeUrl))
 

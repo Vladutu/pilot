@@ -16,7 +16,7 @@ import org.junit.Test
 class InAppMapsToWazeResolverTest {
 
     private lateinit var server: MockWebServer
-    private lateinit var resolver: InAppMapsToWazeResolver
+    private lateinit var resolver: MapsResolver
 
     @Before
     fun setUp() {
@@ -66,6 +66,19 @@ class InAppMapsToWazeResolverTest {
         assertEquals("https://ul.waze.com/ul?ll=52.5162746%2C13.3777041&navigate=yes", res?.wazeUrl)
         assertEquals(shared, res?.resolvedUrl)
         assertEquals("no network call expected on fast path", 0, server.requestCount)
+        assertEquals(1, ResolverStats.count(ResolverStats.Outcome.IN_APP_FAST))
+    }
+
+    @Test
+    fun resolve_usesHint_whenSubjectHasDmsCoords() = runBlocking {
+        // goo.gl/maps links can fail URL resolution, but the share subject carries the coords.
+        val res = resolver.resolve(
+            "https://goo.gl/maps/o651952buFBbwHGq5",
+            hints = listOf("44°07'29.5\"N 24°17'13.5\"E"),
+        )
+
+        assertEquals("https://ul.waze.com/ul?ll=44.124861%2C24.287083&navigate=yes", res?.wazeUrl)
+        assertEquals("no network call expected when a hint resolves", 0, server.requestCount)
         assertEquals(1, ResolverStats.count(ResolverStats.Outcome.IN_APP_FAST))
     }
 

@@ -14,9 +14,13 @@ data class MapsResolution(
 
 /**
  * On-device Google Maps → Waze resolver. Returns null when it cannot produce a Waze link
- * (no coordinates in the resolved URL, or a network failure) so the caller can fall back to the
- * remote [MapsToWazeConverter]. Implementations MUST NOT throw.
+ * (no coordinates anywhere, or a network failure) so the caller can fall back to the remote
+ * [MapsToWazeConverter]. Implementations MUST NOT throw.
+ *
+ * @param hints free-text strings that may already contain the destination coordinates — chiefly the
+ *        share **subject**, which Google Maps fills with the place name or `D°M'S"N D°M'S"E` coords.
+ *        Checked before any network call.
  */
 interface MapsResolver {
-    suspend fun resolve(googleMapsUrl: String): MapsResolution?
+    suspend fun resolve(googleMapsUrl: String, hints: List<String> = emptyList()): MapsResolution?
 }

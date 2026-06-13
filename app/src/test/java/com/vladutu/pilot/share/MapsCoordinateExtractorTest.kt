@@ -49,6 +49,24 @@ class MapsCoordinateExtractorTest {
     }
 
     @Test
+    fun extractsLiteralDmsFromShareSubject() {
+        // The form Google Maps puts in EXTRA_SUBJECT (literal °, ', ", space-separated).
+        val subject = "44°07'29.5\"N 24°17'13.5\"E"
+        val c = MapsCoordinateExtractor.extract(subject)
+        assertEquals("44.124861", c?.lat)
+        assertEquals("24.287083", c?.lng)
+    }
+
+    @Test
+    fun skipsOutOfRangePair_andPicksValidLaterMatch() {
+        // A noisy body: first decimal pair has lat 675 (invalid) and must be skipped.
+        val text = "junk 675.723538965336,23.7817915 then q=44.124869,24.287085 end"
+        val c = MapsCoordinateExtractor.extract(text)
+        assertEquals("44.124869", c?.lat)
+        assertEquals("24.287085", c?.lng)
+    }
+
+    @Test
     fun returnsNull_whenNoCoordinates() {
         val url = "https://www.google.com/maps/place/Eiffel+Tower"
         assertNull(MapsCoordinateExtractor.extract(url))

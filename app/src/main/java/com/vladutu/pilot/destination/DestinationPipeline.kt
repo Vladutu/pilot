@@ -139,7 +139,13 @@ class DestinationPipeline(
                 // (datacenter IP + python-requests + HEAD), which is why papko intermittently 200s.
                 // Fall back to papko only on an in-app miss (no coords in the resolved URL — e.g. an
                 // opaque place-id link needing the Places API — or a network failure).
-                val inApp = inAppResolver?.resolve(classified.rawUrl)
+                // The share subject (carried on MapsShare as provisionalTitle) often holds the
+                // destination coords — pass it as a hint so the resolver can skip the network and
+                // the fragile goo.gl/maps link resolution entirely.
+                val inApp = inAppResolver?.resolve(
+                    classified.rawUrl,
+                    hints = listOfNotNull(classified.provisionalTitle),
+                )
                 if (inApp != null) {
                     titleSourceUrl = inApp.resolvedUrl
                     inApp.wazeUrl

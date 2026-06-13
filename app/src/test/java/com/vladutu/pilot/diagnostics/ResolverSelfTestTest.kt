@@ -18,7 +18,7 @@ class ResolverSelfTestTest {
     @Test
     fun pass_whenResolverReturnsResolution() = runBlocking {
         val resolver = object : MapsResolver {
-            override suspend fun resolve(googleMapsUrl: String) =
+            override suspend fun resolve(googleMapsUrl: String, hints: List<String>) =
                 MapsResolution("https://ul.waze.com/ul?ll=1.0%2C2.0&navigate=yes", "https://maps/search/1.0,2.0")
         }
 
@@ -31,7 +31,7 @@ class ResolverSelfTestTest {
     @Test
     fun driftSuspected_whenResolverFindsNoCoords() = runBlocking {
         val resolver = object : MapsResolver {
-            override suspend fun resolve(googleMapsUrl: String): MapsResolution? {
+            override suspend fun resolve(googleMapsUrl: String, hints: List<String>): MapsResolution? {
                 ResolverStats.record(ResolverStats.Outcome.FALLBACK_NO_COORDS)
                 return null
             }
@@ -46,7 +46,7 @@ class ResolverSelfTestTest {
     @Test
     fun networkFailure_isInconclusive_notDrift() = runBlocking {
         val resolver = object : MapsResolver {
-            override suspend fun resolve(googleMapsUrl: String): MapsResolution? {
+            override suspend fun resolve(googleMapsUrl: String, hints: List<String>): MapsResolution? {
                 ResolverStats.record(ResolverStats.Outcome.FALLBACK_NETWORK)
                 return null
             }
