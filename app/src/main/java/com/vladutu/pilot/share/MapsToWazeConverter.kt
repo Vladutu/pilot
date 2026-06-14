@@ -10,8 +10,16 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 /**
- * Converts a Google Maps URL into a Waze deep-link URL by POSTing the Maps URL to
- * a third-party converter service ([endpoint], default `https://waze.papko.org/`).
+ * Converts a Google Maps URL into a Waze deep-link URL. A single attempt; [WazeConversionException]
+ * on any failure. The retry loop lives in [ShareConversionController], not here.
+ */
+interface WazeConverter {
+    suspend fun convert(googleMapsUrl: String): String
+}
+
+/**
+ * [WazeConverter] backed by a third-party converter service ([endpoint], default
+ * `https://waze.papko.org/`): POSTs the Maps URL and reads the redirect.
  *
  * The service responds with a `302 Found` whose `Location` header is the Waze URL
  * (`https://ul.waze.com/ul?ll=<lat>,<lng>&navigate=yes`). Any other shape — 200 HTML
@@ -24,9 +32,9 @@ class MapsToWazeConverter(
     private val client: OkHttpClient,
     private val endpoint: String,
     private val callTimeoutSec: Long = 10L,
-) {
+) : WazeConverter {
 
-    suspend fun convert(googleMapsUrl: String): String = withContext(Dispatchers.IO) {
+    override suspend fun convert(googleMapsUrl: String): String = withContext(Dispatchers.IO) {
         val body = FormBody.Builder().add("url", googleMapsUrl).build()
         val req = Request.Builder().url(endpoint).post(body).build()
 

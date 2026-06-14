@@ -172,9 +172,35 @@ class DestinationPipeline(
 
         val googleMapsUrl: String? = (classified as? ClassifiedShare.MapsShare)?.rawUrl
 
+        return ingestResolvedDestination(
+            wazeUrl = wazeUrl,
+            googleMapsUrl = googleMapsUrl,
+            provisionalTitle = classified.provisionalTitle,
+            titleSourceUrl = titleSourceUrl,
+            manualTitle = manualTitle,
+        )
+    }
+
+    /**
+     * Save + publish for a destination whose Waze URL has **already** been resolved (in-app or via
+     * the converter). This is the back half of [ingestDestination], split out so the share flow can
+     * run the interactive in-app/papko resolution itself (with the foreground retry loop — see
+     * [com.vladutu.pilot.share.ShareConversionController]) and hand the finished Waze URL here for
+     * headless persistence in [com.vladutu.pilot.share.ShareIngestService].
+     *
+     * @param titleSourceUrl resolved Maps URL (carries `/place/<Name>/` for a real title) when
+     *        available, otherwise the raw shared URL. Used only to derive a title.
+     */
+    suspend fun ingestResolvedDestination(
+        wazeUrl: String,
+        googleMapsUrl: String?,
+        provisionalTitle: String?,
+        titleSourceUrl: String?,
+        manualTitle: String? = null,
+    ): IngestResult {
         val title = resolveTitle(
             manualTitle = manualTitle,
-            shareProvisionalTitle = classified.provisionalTitle,
+            shareProvisionalTitle = provisionalTitle,
             rawUrl = titleSourceUrl,
             wazeUrl = wazeUrl,
         )

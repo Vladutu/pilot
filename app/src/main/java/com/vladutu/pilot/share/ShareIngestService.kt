@@ -51,8 +51,13 @@ class ShareIngestService : Service() {
 
         val urlText = intent?.getStringExtra(EXTRA_URL)
         val subject = intent?.getStringExtra(EXTRA_SUBJECT)
-        if (urlText.isNullOrBlank()) {
-            DiagnosticLog.w(TAG, "missing EXTRA_URL — stopping")
+        val wazeUrl = intent?.getStringExtra(EXTRA_WAZE_URL)
+
+        // Two entry shapes: the resolved path (EXTRA_WAZE_URL set — the Maps share already went
+        // through ShareConversionController in the activity, so we only save + publish) and the
+        // full path (EXTRA_URL set — YT Music / Waze / manual, classified + resolved here).
+        if (wazeUrl.isNullOrBlank() && urlText.isNullOrBlank()) {
+            DiagnosticLog.w(TAG, "missing EXTRA_WAZE_URL/EXTRA_URL — stopping")
             stopSelf(startId)
             return START_NOT_STICKY
         }
@@ -62,11 +67,20 @@ class ShareIngestService : Service() {
         scope.launch {
             DiagnosticLog.i(TAG, "ingest coroutine started (startId=$startId)")
             try {
-                val result = app.destinationPipeline.ingest(
-                    urlText = urlText,
-                    manualTitle = null,
-                    subject = subject,
-                )
+                val result = if (!wazeUrl.isNullOrBlank()) {
+                    app.destinationPipeline.ingestResolvedDestination(
+                        wazeUrl = wazeUrl,
+                        googleMapsUrl = intent?.getStringExtra(EXTRA_GMAPS_URL),
+                        provisionalTitle = subject,
+                        titleSourceUrl = intent?.getStringExtra(EXTRA_TITLE_SOURCE_URL) ?: wazeUrl,
+                    )
+                } else {
+                    app.destinationPipeline.ingest(
+                        urlText = urlText!!,
+                        manualTitle = null,
+                        subject = subject,
+                    )
+                }
                 DiagnosticLog.i(TAG, "ingest result=${result::class.simpleName} toast=${result.toastText}")
                 showToast(result.toastText)
             } catch (t: Throwable) {
@@ -121,10 +135,34 @@ class ShareIngestService : Service() {
         private const val NOTIF_ID = 1001
         const val EXTRA_URL = "com.vladutu.pilot.share.EXTRA_URL"
         const val EXTRA_SUBJECT = "com.vladutu.pilot.share.EXTRA_SUBJECT"
+        const val EXTRA_WAZE_URL = "com.vladutu.pilot.share.EXTRA_WAZE_URL"
+        const val EXTRA_GMAPS_URL = "com.vladutu.pilot.share.EXTRA_GMAPS_URL"
+        const val EXTRA_TITLE_SOURCE_URL = "com.vladutu.pilot.share.EXTRA_TITLE_SOURCE_URL"
 
+        /** Full path: classify + resolve + save + publish (YT Music / Waze / manual entry). */
         fun intent(context: Context, urlText: String, subject: String?): Intent =
             Intent(context, ShareIngestService::class.java).apply {
                 putExtra(EXTRA_URL, urlText)
+                putExtra(EXTRA_SUBJECT, subject)
+            }
+
+        /**
+         * Resolved path: the Maps share was already converted to [wazeUrl] by
+         * [ShareConversionController]; the service only saves + publishes. [subject] carries the
+         * provisional title (share subject); [titleSourceUrl] is the resolved /place/ URL when
+         * available (in-app), else the raw Maps URL.
+         */
+        fun intentResolved(
+            context: Context,
+            wazeUrl: String,
+            googleMapsUrl: String?,
+            titleSourceUrl: String?,
+            subject: String?,
+        ): Intent =
+            Intent(context, ShareIngestService::class.java).apply {
+                putExtra(EXTRA_WAZE_URL, wazeUrl)
+                putExtra(EXTRA_GMAPS_URL, googleMapsUrl)
+                putExtra(EXTRA_TITLE_SOURCE_URL, titleSourceUrl)
                 putExtra(EXTRA_SUBJECT, subject)
             }
     }

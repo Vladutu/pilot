@@ -373,6 +373,53 @@ class DestinationPipelineTest {
         assertEquals(wazeUrl, savedEntries[0].id)
     }
 
+    // --- resolved path (share flow hands an already-converted Waze URL) --------------------------
+
+    @Test
+    fun ingestResolvedDestination_savesAndPublishes_withoutTouchingConverter() = runBlocking {
+        val result = newPipeline().ingestResolvedDestination(
+            wazeUrl = wazeUrl,
+            googleMapsUrl = "https://maps.app.goo.gl/abc123",
+            provisionalTitle = "Dedeman",
+            titleSourceUrl = "https://maps.app.goo.gl/abc123",
+        )
+
+        assertTrue("expected Success, got $result", result is IngestResult.Success)
+        assertEquals("Dedeman", (result as IngestResult.Success).title)
+        assertEquals(0, converterServer.requestCount) // converter never touched on the resolved path
+        assertEquals(1, savedEntries.size)
+        assertEquals(Form.DESTINATION, savedEntries[0].form)
+        assertEquals(wazeUrl, savedEntries[0].id)
+        assertEquals("Dedeman", savedEntries[0].title)
+        assertEquals("https://maps.app.goo.gl/abc123", savedEntries[0].googleMapsUrl)
+        assertEquals(listOf(wazeUrl), publisher.publishedWaze)
+    }
+
+    @Test
+    fun ingestResolvedDestination_titleFromPlaceUrl_whenNoSubject() = runBlocking {
+        val result = newPipeline().ingestResolvedDestination(
+            wazeUrl = wazeUrl,
+            googleMapsUrl = "https://maps.app.goo.gl/abc123",
+            provisionalTitle = null,
+            titleSourceUrl = "https://www.google.com/maps/place/Brandenburg+Gate/@52.5,13.4,17z/",
+        )
+        assertEquals("Brandenburg Gate", (result as IngestResult.Success).title)
+    }
+
+    @Test
+    fun ingestResolvedDestination_publishFails_entryStillSaved() = runBlocking {
+        publisher.failNextPublish = true
+        val result = newPipeline().ingestResolvedDestination(
+            wazeUrl = wazeUrl,
+            googleMapsUrl = null,
+            provisionalTitle = "Park",
+            titleSourceUrl = null,
+        )
+        assertTrue("expected PublishFailed, got $result", result is IngestResult.PublishFailed)
+        assertEquals(1, savedEntries.size)
+        assertTrue(publisher.publishedWaze.isEmpty())
+    }
+
     private class FakeCatalogStore(val backing: MutableList<CatalogEntry>) : CatalogStore(FAKE_DATASTORE) {
         var failNextUpsert: Boolean = false
         override suspend fun upsert(entry: CatalogEntry) {
