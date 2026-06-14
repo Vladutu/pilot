@@ -62,10 +62,11 @@ class ShareReceiverActivity : ComponentActivity() {
 
         setContent {
             val state by controller.state.collectAsState()
-            // Nothing composes on the fast path → the translucent window stays fully transparent
-            // (and PilotTheme's status-bar SideEffect doesn't fire). The card appears only on retry.
+            // Nothing composes during the brief invisible grace window → the translucent window stays
+            // fully transparent (and PilotTheme's status-bar SideEffect doesn't fire). The card
+            // appears once resolution outlasts the grace delay (Converting) or papko fails (Retrying).
             val current = state
-            if (current is ConversionUiState.Retrying) {
+            if (current !is ConversionUiState.Working) {
                 PilotTheme {
                     ConversionOverlay(state = current, onStop = ::onUserStop)
                 }

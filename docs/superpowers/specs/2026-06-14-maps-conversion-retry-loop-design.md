@@ -188,6 +188,19 @@ its tail to `ingestResolvedDestination`. No behavior change for existing callers
 Per workspace workflow: no Gradle run here (no Android SDK on this box) and no commits at
 code-writing time. Georgian builds + runs the suite on his Mac, then commits.
 
+## Revision 1 (2026-06-14, post on-device test)
+
+First on-device build exposed a UX bug: the activity was invisible (translucent) **but still on
+top**, so during the ~1–2s fallback window (in-app network resolve + first papko call) Maps showed
+through but was frozen — even when papko 302'd first try. An invisible window still eats touches.
+
+Fix: a `ConversionUiState.Converting` (spinner card, no attempt counter) is now shown once
+resolution outlasts a `graceDelayMs` (≈450 ms) grace window. Genuinely fast resolves still finish
+inside the grace and flash nothing; anything slower shows a visible "Converting… [Stop]" card so the
+user sees Pilot working instead of a frozen Maps. The retry card is the same overlay plus the
+attempt counter. The controller arms the grace via a `launch { delay; if Working → Converting }`
+cancelled in `finally`.
+
 ## Open questions
 
 None — design fully specified.

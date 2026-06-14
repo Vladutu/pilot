@@ -21,11 +21,24 @@ import androidx.compose.ui.unit.dp
 /**
  * The share activity's only UI. Renders nothing on the [ConversionUiState.Working] fast path (the
  * activity is translucent, so the previous app shows through), and a centered "Converting… [Stop]"
- * card over a dim scrim once the papko retry loop is running ([ConversionUiState.Retrying]).
+ * card over a dim scrim once resolution is taking a moment ([ConversionUiState.Converting]) or papko
+ * is being retried ([ConversionUiState.Retrying], which adds an attempt counter).
  */
 @Composable
 fun ConversionOverlay(state: ConversionUiState, onStop: () -> Unit) {
-    if (state !is ConversionUiState.Retrying) return
+    val label: String
+    val attempt: Int?
+    when (state) {
+        is ConversionUiState.Converting -> {
+            label = state.label
+            attempt = null
+        }
+        is ConversionUiState.Retrying -> {
+            label = state.label
+            attempt = state.attempt
+        }
+        ConversionUiState.Working -> return
+    }
 
     Box(
         modifier = Modifier
@@ -43,16 +56,18 @@ fun ConversionOverlay(state: ConversionUiState, onStop: () -> Unit) {
             ) {
                 CircularProgressIndicator()
                 Text(
-                    text = "Converting “${state.label}”…",
+                    text = "Converting “$label”…",
                     textAlign = TextAlign.Center,
                 )
-                // attempt = papko tries already made; show the one about to run.
-                Text(text = "attempt ${state.attempt + 1}")
-                if (state.attempt >= LONG_RUN_HINT_AFTER) {
-                    Text(
-                        text = "papko may be down — you can stop and try again later",
-                        textAlign = TextAlign.Center,
-                    )
+                if (attempt != null) {
+                    // attempt = papko tries already made; show the one about to run.
+                    Text(text = "attempt ${attempt + 1}")
+                    if (attempt >= LONG_RUN_HINT_AFTER) {
+                        Text(
+                            text = "papko may be down — you can stop and try again later",
+                            textAlign = TextAlign.Center,
+                        )
+                    }
                 }
                 Button(onClick = onStop) {
                     Text(text = "Stop")

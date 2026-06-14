@@ -1,5 +1,6 @@
 package com.vladutu.pilot.share
 
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -66,6 +67,39 @@ class ShareConversionControllerTest {
         assertTrue("expected Retrying, got $state", state is ConversionUiState.Retrying)
         assertEquals(2, (state as ConversionUiState.Retrying).attempt) // 2 failures recorded
         assertEquals("Dedeman", state.label)
+    }
+
+    @Test
+    fun convertingCard_appearsAfterGrace_whenResolveIsSlow() = runTest {
+        val slowResolver = object : MapsResolver {
+            override suspend fun resolve(googleMapsUrl: String, hints: List<String>): MapsResolution? {
+                delay(2_000L) // outlasts the grace window
+                return null
+            }
+        }
+        val converter = FakeConverter(failuresBeforeSuccess = 0, successUrl = wazeUrl)
+        val controller = ShareConversionController(slowResolver, converter, retryDelayMs = 1_000L, graceDelayMs = 450L)
+
+        val job = launch { controller.run(mapsUrl, subject = "Dedeman") }
+        advanceTimeBy(500L) // past the 450ms grace, still inside the 2s resolve
+        runCurrent()
+
+        assertEquals(ConversionUiState.Converting("Dedeman"), controller.state.value)
+        job.cancel()
+        job.join()
+    }
+
+    @Test
+    fun fastInApp_neverShowsConvertingCard() = runTest {
+        // Resolves well within the grace window → stays invisible (Working) the whole time.
+        val resolver = FakeResolver(MapsResolution(wazeUrl, resolvedUrl = "https://www.google.com/maps/place/X"))
+        val converter = FakeConverter(failuresBeforeSuccess = 0, successUrl = "unused")
+        val controller = ShareConversionController(resolver, converter, retryDelayMs = 1_000L, graceDelayMs = 450L)
+
+        val outcome = controller.run(mapsUrl, subject = "Dedeman")
+
+        assertTrue(outcome is ConversionOutcome.Resolved)
+        assertEquals(ConversionUiState.Working, controller.state.value) // grace never elapsed
     }
 
     @Test
