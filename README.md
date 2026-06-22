@@ -33,6 +33,18 @@ driving.
   every ingest, publish attempt, failure, and the process/network state at publish
   time, for troubleshooting flaky shares.
 
+## Permissions
+
+Pilot only needs ordinary phone permissions — no special-access grants (unlike
+Copilot, which runs the car-side overlay/accessibility services):
+
+| Permission | Why |
+|---|---|
+| `INTERNET` | Publish commands to ntfy; fetch titles/artwork, Maps→Waze conversion, radio search |
+| `FOREGROUND_SERVICE` (+ `_DATA_SYNC`) | `ShareIngestService` keeps a publish alive on metered/slow networks |
+| `POST_NOTIFICATIONS` | The foreground-service notification while a share is publishing (Android 13+) |
+| `CAMERA` | Scan Copilot's QR code to pair the ntfy topic (runtime prompt, only when you open the scanner) |
+
 ## Tech stack
 
 Kotlin · Jetpack Compose (Material 3) · OkHttp (ntfy / converter / radio-browser /
@@ -57,7 +69,8 @@ discover categories).
 | `meta` | `MetadataFetcher` — YouTube oEmbed / OG-tag scrape + artwork download. |
 | `discover` | `DiscoverCategoryStore` — local keyword list. |
 | `diagnostics` | `DiagnosticLog`, `DiagnosticsActivity`, `ProcessState`. |
-| `config` | `Config` — ntfy base URL, **shared topic** (must match Copilot), papko endpoint. |
+| `settings` | `SettingsStore` (per-device ntfy topic), `TopicPairing` (QR pairing with Copilot). |
+| `config` | `Config` — ntfy base URL + papko converter endpoint (the topic is **not** here; it's per-device in `SettingsStore`). |
 | `ui` | Compose screens + theme. |
 
 ### Wire protocol (v3)
@@ -70,8 +83,9 @@ Publishes a JSON envelope to the shared ntfy topic:
   "url": "…", "title": "…", "imageUrl": "…" }
 ```
 
-The topic is hardcoded in `Config` and **must be identical in Copilot**. `ts` is a
-Unix timestamp; Copilot rejects messages older than 30s to defend against ntfy's
+Each device has its own ntfy topic (stored in `SettingsStore`), paired to Copilot
+by scanning a QR code — there is no shared hardcoded topic. `ts` is a Unix
+timestamp; Copilot rejects messages older than 30s to defend against ntfy's
 replay cache.
 
 ## Build & run
@@ -90,9 +104,10 @@ keystore present, runs tests, builds a signed APK, tags, and publishes a GitHub
 release. See [`docs/RELEASING.md`](docs/RELEASING.md) for the Obtainium auto-update
 setup.
 
-> **Signing:** `keystore/pilot-release.jks` and `signing.properties` are committed
-> on purpose — the repo is private and the password isn't a secret, so anyone with
-> access can cut a release.
+> **Signing:** the release keystore + `signing.properties` are **local-only and
+> gitignored** — run `scripts/setup-signing.sh` once to generate them. A keyless
+> clone still builds (it falls back to debug signing), so only your machine, with
+> the real keystore, produces installable release updates.
 
 CI (`.github/workflows/ci.yml`) runs the same `make check` on PRs and pushes to
 `master`, with Dependabot patch/minor auto-merge once the build is green.
@@ -107,9 +122,9 @@ Pilot/
 │   └── src/main/java/com/vladutu/pilot/
 │       ├── PilotApp.kt  MainActivity.kt
 │       ├── share/ destination/ net/ catalog/ radio/
-│       ├── meta/ discover/ diagnostics/ config/ ui/
+│       ├── meta/ discover/ diagnostics/ settings/ config/ ui/
 ├── scripts/                       # release.sh, version.sh, bootstrap-wrapper.sh
-├── keystore/                      # committed signing key
+├── keystore/                      # signing.properties.template (real key is gitignored, local-only)
 ├── docs/                          # RELEASING.md + superpowers/ design docs & plans
 └── .github/                       # ci.yml, dependabot.yml
 ```
