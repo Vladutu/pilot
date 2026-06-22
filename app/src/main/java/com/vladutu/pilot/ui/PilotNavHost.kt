@@ -3,6 +3,7 @@ package com.vladutu.pilot.ui
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,6 +40,7 @@ fun PilotNavHost(
     startUnpaired: Boolean = false,
 ) {
     val context = LocalContext.current
+    val radioCountry by settingsStore.radioCountryFlow.collectAsState(initial = null)
     var route by remember {
         mutableStateOf<PilotRoute>(if (startUnpaired) PilotRoute.Settings else PilotRoute.Home)
     }
@@ -64,11 +66,13 @@ fun PilotNavHost(
             store = store,
             pipeline = pipeline,
             publishStatus = publishStatus,
+            radioCountrySet = radioCountry != null,
             onBack = { route = PilotRoute.Home },
             onOpenRadioSearch = { route = PilotRoute.RadioSearch },
         )
         is PilotRoute.RadioSearch -> RadioSearchScreen(
             client = radioBrowserClient,
+            countryCode = radioCountry?.code,
             store = store,
             metadataFetcher = metadataFetcher,
             onBack = { route = PilotRoute.Category(Form.RADIO) },
@@ -81,6 +85,7 @@ fun PilotNavHost(
         )
         is PilotRoute.Settings -> SettingsScreen(
             settingsStore = settingsStore,
+            radioBrowserClient = radioBrowserClient,
             onBack = { route = PilotRoute.Home },
             onOpenDiagnostics = {
                 context.startActivity(Intent(context, DiagnosticsActivity::class.java))

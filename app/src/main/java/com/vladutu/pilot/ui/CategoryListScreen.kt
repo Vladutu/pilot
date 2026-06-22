@@ -62,6 +62,7 @@ fun CategoryListScreen(
     store: CatalogStore,
     pipeline: DestinationPipeline,
     publishStatus: PublishStatusHolder,
+    radioCountrySet: Boolean,
     onBack: () -> Unit,
     onOpenRadioSearch: () -> Unit,
 ) {
@@ -115,7 +116,11 @@ fun CategoryListScreen(
     ) { padding ->
         val visible = entries.filter { it.form == form }
         if (visible.isEmpty()) {
-            EmptyCategoryState(form = form, modifier = Modifier.fillMaxSize().padding(padding))
+            EmptyCategoryState(
+                form = form,
+                radioCountrySet = radioCountrySet,
+                modifier = Modifier.fillMaxSize().padding(padding),
+            )
         } else {
             PullToRefreshBox(
                 isRefreshing = refreshing,
@@ -270,12 +275,16 @@ fun CategoryListScreen(
 }
 
 @Composable
-private fun EmptyCategoryState(form: Form, modifier: Modifier = Modifier) {
+private fun EmptyCategoryState(form: Form, radioCountrySet: Boolean, modifier: Modifier = Modifier) {
     val text = when (form) {
         Form.PLAYLIST -> "Share a playlist from YT Music or tap + to paste a URL"
         Form.SONG -> "Share a song from YT Music or tap + to paste a URL"
         Form.DESTINATION -> "Share a Google Maps link or tap + to add a destination"
-        Form.RADIO -> "Tap search to find Romanian stations, or add a stream URL"
+        Form.RADIO -> if (radioCountrySet) {
+            "Tap search to find stations, or add a stream URL"
+        } else {
+            "Set a radio country in Settings to find stations"
+        }
     }
     Box(modifier = modifier.padding(32.dp), contentAlignment = Alignment.Center) {
         Text(text = text, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)

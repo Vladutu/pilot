@@ -53,6 +53,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 private sealed interface SearchState {
+    data object NoCountry : SearchState
     data object Loading : SearchState
     data class Loaded(val stations: List<RadioStation>) : SearchState
     data class Error(val message: String) : SearchState
@@ -62,6 +63,7 @@ private sealed interface SearchState {
 @Composable
 fun RadioSearchScreen(
     client: RadioBrowserClient,
+    countryCode: String?,
     store: CatalogStore,
     metadataFetcher: MetadataFetcher,
     onBack: () -> Unit,
@@ -75,10 +77,11 @@ fun RadioSearchScreen(
     val inCatalog = RadioCatalog.inCatalogUuids(entries)
 
     suspend fun runSearch(q: String?) {
+        val cc = countryCode ?: return
         state = SearchState.Loading
         state = try {
             // lastCheckOk pre-filter (spec §8): hidebroken already drops dead streams; keep verified ones.
-            SearchState.Loaded(client.searchRomania(q).filter { it.lastCheckOk })
+            SearchState.Loaded(client.search(cc, q).filter { it.lastCheckOk })
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -87,7 +90,11 @@ fun RadioSearchScreen(
         }
     }
 
-    LaunchedEffect(Unit) { runSearch(null) }
+    // Re-runs when the country changes (e.g. user just set one in Settings).
+    LaunchedEffect(countryCode) {
+        state = if (countryCode == null) SearchState.NoCountry else SearchState.Loading
+        if (countryCode != null) runSearch(null)
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
@@ -104,23 +111,31 @@ fun RadioSearchScreen(
         },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                label = { Text("Search Romanian stations") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = {
-                    keyboard?.hide()
-                    scope.launch { runSearch(query) }
-                }),
-                trailingIcon = {
-                    TextButton(onClick = { scope.launch { runSearch(query) } }) { Text("Go") }
-                },
-                modifier = Modifier.fillMaxWidth(),
-            )
+            if (state !is SearchState.NoCountry) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    label = { Text("Search stations") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = {
+                        keyboard?.hide()
+                        scope.launch { runSearch(query) }
+                    }),
+                    trailingIcon = {
+                        TextButton(onClick = { scope.launch { runSearch(query) } }) { Text("Go") }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
 
             when (val s = state) {
+                is SearchState.NoCountry -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                    Text(
+                        "Set a radio country in Settings to find stations",
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
                 is SearchState.Loading -> Box(Modifier.fillMaxSize(), Alignment.Center) {
                     CircularProgressIndicator()
                 }
