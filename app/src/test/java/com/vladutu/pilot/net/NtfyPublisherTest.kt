@@ -26,7 +26,7 @@ class NtfyPublisherTest {
         publisher = NtfyPublisher(
             client = OkHttpClient(),
             base = server.url("").toString().trimEnd('/'),
-            topic = "topic",
+            topicProvider = { "topic" },
             clock = { 12345L },
         )
     }
@@ -112,7 +112,7 @@ class NtfyPublisherTest {
     private fun fastRetryPublisher() = NtfyPublisher(
         client = OkHttpClient(),
         base = server.url("").toString().trimEnd('/'),
-        topic = "topic",
+        topicProvider = { "topic" },
         clock = { 12345L },
         maxRetries = 3,
         retryBaseDelayMs = 1L,

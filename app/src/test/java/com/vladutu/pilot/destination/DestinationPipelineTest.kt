@@ -444,7 +444,7 @@ class DestinationPipelineTest {
     private class FakePublisher : NtfyPublisher(
         client = OkHttpClient(),
         base = "http://fake",
-        topic = "fake",
+        topicProvider = { "fake" },
     ) {
         val publishedWaze = mutableListOf<String>()
         val publishedYtMusic = mutableListOf<Pair<Form, String>>()

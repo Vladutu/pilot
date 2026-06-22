@@ -17,7 +17,7 @@ class NtfyPublishException(message: String, cause: Throwable? = null) : IOExcept
 open class NtfyPublisher(
     private val client: OkHttpClient,
     private val base: String,
-    private val topic: String,
+    private val topicProvider: () -> String?,
     private val clock: () -> Long = { System.currentTimeMillis() / 1000L },
     private val maxRetries: Int = 3,
     private val retryBaseDelayMs: Long = 1_000L,
@@ -83,6 +83,12 @@ open class NtfyPublisher(
         title: String?,
         imageUrl: String?,
     ) = withContext(Dispatchers.IO) {
+        val topic = topicProvider()?.takeIf { it.isNotBlank() }
+        if (topic == null) {
+            DiagnosticLog.w(TAG, "publish blocked: not paired (no topic) cmd=$cmd")
+            throw NtfyPublishException("not paired: no ntfy topic set")
+        }
+
         val payload = JSONObject().apply {
             put("v", SCHEMA_VERSION)
             put("ts", clock())

@@ -1,24 +1,29 @@
 package com.vladutu.pilot.ui
 
+import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import com.vladutu.pilot.catalog.CatalogStore
 import com.vladutu.pilot.catalog.Form
 import com.vladutu.pilot.destination.DestinationPipeline
+import com.vladutu.pilot.diagnostics.DiagnosticsActivity
 import com.vladutu.pilot.discover.DiscoverCategoryStore
 import com.vladutu.pilot.meta.MetadataFetcher
 import com.vladutu.pilot.net.NtfyPublisher
 import com.vladutu.pilot.radio.RadioBrowserClient
+import com.vladutu.pilot.settings.SettingsStore
 
 private sealed interface PilotRoute {
     data object Home : PilotRoute
     data class Category(val form: Form) : PilotRoute
     data object RadioSearch : PilotRoute
     data object DiscoverCategories : PilotRoute
+    data object Settings : PilotRoute
 }
 
 @Composable
@@ -30,8 +35,13 @@ fun PilotNavHost(
     pipeline: DestinationPipeline,
     publishStatus: PublishStatusHolder,
     radioBrowserClient: RadioBrowserClient,
+    settingsStore: SettingsStore,
+    startUnpaired: Boolean = false,
 ) {
-    var route by remember { mutableStateOf<PilotRoute>(PilotRoute.Home) }
+    val context = LocalContext.current
+    var route by remember {
+        mutableStateOf<PilotRoute>(if (startUnpaired) PilotRoute.Settings else PilotRoute.Home)
+    }
 
     // Hardware back: any spoke returns to the hub; on the hub, let the system handle it.
     BackHandler(enabled = route != PilotRoute.Home) {
@@ -46,6 +56,7 @@ fun PilotNavHost(
             publishStatus = publishStatus,
             onOpenCategory = { route = PilotRoute.Category(it) },
             onOpenDiscover = { route = PilotRoute.DiscoverCategories },
+            onOpenSettings = { route = PilotRoute.Settings },
         )
         is PilotRoute.Category -> CategoryListScreen(
             form = r.form,
@@ -67,6 +78,13 @@ fun PilotNavHost(
             store = discoverStore,
             publishStatus = publishStatus,
             onBack = { route = PilotRoute.Home },
+        )
+        is PilotRoute.Settings -> SettingsScreen(
+            settingsStore = settingsStore,
+            onBack = { route = PilotRoute.Home },
+            onOpenDiagnostics = {
+                context.startActivity(Intent(context, DiagnosticsActivity::class.java))
+            },
         )
     }
 }

@@ -11,16 +11,19 @@ import com.vladutu.pilot.diagnostics.DiagnosticLog
 import com.vladutu.pilot.discover.DiscoverCategoryStore
 import com.vladutu.pilot.meta.MetadataFetcher
 import com.vladutu.pilot.net.NtfyPublisher
+import com.vladutu.pilot.settings.SettingsStore
 import com.vladutu.pilot.share.MapsToWazeConverter
 import com.vladutu.pilot.ui.PublishStatusHolder
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 
 private val Application.catalogDataStore: DataStore<Preferences> by preferencesDataStore(name = "catalog")
 private val Application.discoverDataStore: DataStore<Preferences> by preferencesDataStore(name = "discover_categories")
+private val Application.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
 class PilotApp : Application() {
 
@@ -32,10 +35,22 @@ class PilotApp : Application() {
 
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + crashHandler)
 
+    @Volatile
+    var currentTopic: String? = null
+        private set
+
+    val settingsStore: SettingsStore by lazy { SettingsStore(settingsDataStore) }
+
     override fun onCreate() {
         super.onCreate()
         DiagnosticLog.init(this)
         DiagnosticLog.i("App", "PilotApp.onCreate (pid=${android.os.Process.myPid()})")
+        applicationScope.launch {
+            settingsStore.topicFlow.collect { topic ->
+                currentTopic = topic
+                DiagnosticLog.i("App", "topic updated: ${topic ?: "<none>"}")
+            }
+        }
     }
 
     val httpClient: OkHttpClient by lazy { OkHttpClient() }
@@ -45,7 +60,7 @@ class PilotApp : Application() {
     val discoverCategoryStore: DiscoverCategoryStore by lazy { DiscoverCategoryStore(discoverDataStore) }
 
     val ntfyPublisher: NtfyPublisher by lazy {
-        NtfyPublisher(client = httpClient, base = Config.NTFY_BASE, topic = Config.NTFY_TOPIC)
+        NtfyPublisher(client = httpClient, base = Config.NTFY_BASE, topicProvider = { currentTopic })
     }
 
     val publishStatus: PublishStatusHolder by lazy { PublishStatusHolder() }
