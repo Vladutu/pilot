@@ -6,17 +6,21 @@
    Needs a Gradle on PATH first: `sdk install gradle 8.9` (or `brew install gradle`), then
    `./scripts/bootstrap-wrapper.sh`. Commit the generated wrapper files.
 2. **gh CLI:** `brew install gh && gh auth login`
+3. **Signing key** — run `./scripts/setup-signing.sh` once. It generates
+   `keystore/pilot-release.jks` and `keystore/signing.properties` with a random
+   password. Both are **gitignored and never committed** — they exist only on this
+   machine. **Back up the `.jks`**: if you lose it you can never ship an update over
+   an installed Pilot again (you'd have to uninstall/reinstall everywhere with a new key).
 
-That's it — the release keystore (`keystore/pilot-release.jks`) and its credentials
-(`keystore/signing.properties`) are committed in the repo, so any clone can build a
-signed release with no extra setup.
+The keystore and its password are **not** in the repo, so this build setup is safe to
+make public. A fresh clone with no keystore still builds — the `release` build type
+falls back to debug signing when `keystore/signing.properties` is absent (see
+`app/build.gradle.kts`); only your machine, with the real keystore, produces installable
+release updates.
 
-> **Security note (deliberate choice):** the signing key and its password are committed.
-> The password is therefore not a secret. Anyone with read access to this repo can build
-> an APK that installs as a legitimate *update* over an installed Pilot/Copilot and
-> inherits its granted permissions (overlay, accessibility on Copilot). Keep the repo
-> private and keep the Obtainium PAT read-only. To rotate the key you must
-> uninstall/reinstall on every device.
+> **Why local-only:** the signing key lets anyone build an APK that installs as a
+> legitimate *update* over an installed Pilot and inherits its granted permissions
+> (overlay). That power must never be public, so the key lives only here.
 
 ## Cut a release
 

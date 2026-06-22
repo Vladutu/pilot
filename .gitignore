@@ -9,3 +9,7 @@
 .cxx
 local.properties
 .kotlin/
+
+# Signing secrets — local only, never commit (see scripts/setup-signing.sh)
+/keystore/*.jks
+/keystore/signing.properties

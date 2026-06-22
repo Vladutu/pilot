@@ -1,0 +1,8 @@
+# Template for keystore/signing.properties — copy to signing.properties and fill in,
+# or just run scripts/setup-signing.sh which generates both the keystore and this file.
+#
+# The real signing.properties and the .jks are gitignored and must never be committed.
+storeFile=pilot-release.jks
+storePassword=CHANGE_ME
+keyAlias=pilot
+keyPassword=CHANGE_ME

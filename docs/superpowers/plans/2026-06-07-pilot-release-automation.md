@@ -167,16 +167,16 @@ keytool -genkeypair -v \
   -storetype PKCS12 -alias pilot \
   -keyalg RSA -keysize 4096 -validity 10000 \
   -dname "CN=Pilot, O=vladutu, C=RO" \
-  -storepass pilotrelease -keypass pilotrelease
+  -storepass <local-password> -keypass <local-password>
 ```
 
 - [ ] **Step 2 (EDIT): Write `keystore/signing.properties`**
 
 ```properties
 storeFile=pilot-release.jks
-storePassword=pilotrelease
+storePassword=<local-password>
 keyAlias=pilot
-keyPassword=pilotrelease
+keyPassword=<local-password>
 ```
 
 - [ ] **Step 3 (EDIT): Add the `release` signingConfig that reads the in-repo file**
