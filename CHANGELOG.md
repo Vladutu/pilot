@@ -5,6 +5,17 @@ released version tag and is built from the commits between that tag and the
 previous one. This project loosely follows [Keep a Changelog](https://keepachangelog.com)
 and [Semantic Versioning](https://semver.org).
 
+## [0.9.1] - 2026-06-29
+
+### Build
+- Auto-generate CHANGELOG.md on release
+- Bump androidx.compose:compose-bom (#15)
+- Bump gradle-wrapper from 9.5.1 to 9.6.0 (#14)
+- Bump actions/checkout from 6 to 7
+
+### Docs
+- Refresh README for public release
+
 ## [0.9.0] - 2026-06-22
 
 ### Build
@@ -121,6 +132,7 @@ Initial released version. Highlights of the work leading up to it:
 ### Build
 - Release automation — wrapper, signing, `release.sh` (pushes branch + tag), docs.
 
+[0.9.1]: https://github.com/Vladutu/pilot/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/Vladutu/pilot/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/Vladutu/pilot/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/Vladutu/pilot/compare/v0.6.4...v0.7.0
