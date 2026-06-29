@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Pilot release: test -> build release-signed APK -> publish as the latest
-# GitHub release. Runs on the Mac. Requires: JDK 17/21, Android SDK, gh (authed),
+# Pilot release: test -> build release-signed APK -> update CHANGELOG.md ->
+# publish as the latest GitHub release. Runs on the Mac. Requires: JDK 17/21, Android SDK, gh (authed),
 # the in-repo keystore (keystore/signing.properties + .jks), and a committed
 # Gradle wrapper (see scripts/bootstrap-wrapper.sh).
 #
@@ -63,6 +63,14 @@ SRC_APK="app/build/outputs/apk/release/app-release.apk"
 [ -f "$SRC_APK" ] || die "APK not found at $SRC_APK"
 OUT_APK="pilot-$VERSION.apk"
 cp "$SRC_APK" "$OUT_APK"
+
+# --- changelog ---
+echo "==> update CHANGELOG.md"
+./scripts/changelog.sh "$VERSION"
+if ! git diff --quiet -- CHANGELOG.md; then
+  git add CHANGELOG.md
+  git commit -m "docs: changelog for $TAG"
+fi
 
 # --- push, tag + publish ---
 echo "==> push branch + tag + GitHub release"

@@ -5,7 +5,7 @@ help:  ## Show this help
 	@echo "Pilot — available targets:"
 	@echo "  make check            Build, run unit tests, and lint (debug)"
 	@echo "  make version          Show current released version (latest tag)"
-	@echo "  make release V=0.3.0  Test, build, sign, and publish a GitHub release"
+	@echo "  make release V=0.3.0  Test, build, sign, update CHANGELOG, and publish a GitHub release"
 	@echo "  make wrapper          (Re)generate the Gradle wrapper (needs gradle installed)"
 
 check:  ## Build, run unit tests, and lint (debug)
