@@ -5,6 +5,11 @@ released version tag and is built from the commits between that tag and the
 previous one. This project loosely follows [Keep a Changelog](https://keepachangelog.com)
 and [Semantic Versioning](https://semver.org).
 
+## [0.9.2] - 2026-06-29
+
+### Changed
+- Resolve Kotlin compiler warnings
+
 ## [0.9.1] - 2026-06-29
 
 ### Build
@@ -131,6 +136,7 @@ Initial released version. Highlights of the work leading up to it:
 ### Build
 - Release automation — wrapper, signing, `release.sh` (pushes branch + tag), docs.
 
+[0.9.2]: https://github.com/Vladutu/pilot/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/Vladutu/pilot/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/Vladutu/pilot/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/Vladutu/pilot/compare/v0.7.0...v0.8.0
