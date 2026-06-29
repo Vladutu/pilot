@@ -13,10 +13,10 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Place
-import androidx.compose.material.icons.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
@@ -40,7 +40,7 @@ import com.vladutu.pilot.catalog.Form
 private data class CategorySpec(val form: Form, val label: String, val icon: ImageVector)
 
 private val CATEGORIES = listOf(
-    CategorySpec(Form.PLAYLIST, "Playlists", Icons.Filled.PlaylistPlay),
+    CategorySpec(Form.PLAYLIST, "Playlists", Icons.AutoMirrored.Filled.PlaylistPlay),
     CategorySpec(Form.SONG, "Songs", Icons.Filled.MusicNote),
     CategorySpec(Form.DESTINATION, "Places", Icons.Filled.Place),
     CategorySpec(Form.RADIO, "Radio", Icons.Filled.Radio),

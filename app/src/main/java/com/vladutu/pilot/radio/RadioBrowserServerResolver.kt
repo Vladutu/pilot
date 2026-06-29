@@ -39,7 +39,7 @@ class RadioBrowserServerResolver(
         return try {
             client.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) return null
-                val body = resp.body?.string() ?: return null
+                val body = resp.body.string()
                 val arr = JSONArray(body)
                 (0 until arr.length()).mapNotNull {
                     arr.optJSONObject(it)?.optString("name")?.takeIf { n -> n.isNotBlank() }

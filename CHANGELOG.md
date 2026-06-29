@@ -125,7 +125,6 @@ Initial released version. Highlights of the work leading up to it:
 - Persistent in-app diagnostics log to investigate share flakiness.
 
 ### Changed
-- Rename package `be.doccle.pilot` → `com.vladutu.pilot`.
 - Dark automotive-cockpit redesign (PilotTheme, segmented control, status pill);
   Destinations tab renamed to Places; new launcher icon.
 

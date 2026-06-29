@@ -70,9 +70,9 @@ class ShareIngestService : Service() {
                 val result = if (!wazeUrl.isNullOrBlank()) {
                     app.destinationPipeline.ingestResolvedDestination(
                         wazeUrl = wazeUrl,
-                        googleMapsUrl = intent?.getStringExtra(EXTRA_GMAPS_URL),
+                        googleMapsUrl = intent.getStringExtra(EXTRA_GMAPS_URL),
                         provisionalTitle = subject,
-                        titleSourceUrl = intent?.getStringExtra(EXTRA_TITLE_SOURCE_URL) ?: wazeUrl,
+                        titleSourceUrl = intent.getStringExtra(EXTRA_TITLE_SOURCE_URL) ?: wazeUrl,
                     )
                 } else {
                     app.destinationPipeline.ingest(

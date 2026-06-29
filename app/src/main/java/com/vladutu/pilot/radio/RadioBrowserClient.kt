@@ -37,7 +37,7 @@ class RadioBrowserClient(
         try {
             client.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) throw RadioBrowserException("search HTTP ${resp.code}")
-                val body = resp.body?.string() ?: return@use emptyList()
+                val body = resp.body.string()
                 RadioStation.listFrom(body)
             }
         } catch (e: RadioBrowserException) {
@@ -65,7 +65,7 @@ class RadioBrowserClient(
         try {
             client.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) throw RadioBrowserException("countries HTTP ${resp.code}")
-                val body = resp.body?.string() ?: return@use emptyList()
+                val body = resp.body.string()
                 RadioCountry.listFrom(body).also { cachedCountries = it }
             }
         } catch (e: RadioBrowserException) {

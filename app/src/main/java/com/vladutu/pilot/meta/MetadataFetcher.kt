@@ -33,7 +33,7 @@ class MetadataFetcher(
             val resp = client.newCall(Request.Builder().url(url).build()).execute()
             resp.use { r ->
                 if (!r.isSuccessful) return@withContext null
-                tmp.outputStream().use { out -> r.body!!.byteStream().copyTo(out) }
+                tmp.outputStream().use { out -> r.body.byteStream().copyTo(out) }
             }
             if (!tmp.renameTo(target)) {
                 tmp.delete()
@@ -67,7 +67,7 @@ class MetadataFetcher(
             val resp = client.newCall(Request.Builder().url(oembedUrl).build()).execute()
             resp.use { r ->
                 if (!r.isSuccessful) return@runCatching null
-                val body = r.body?.string() ?: return@runCatching null
+                val body = r.body.string()
                 val json = JSONObject(body)
                 Meta(
                     title = json.optString("title").takeIf { it.isNotBlank() },
@@ -89,7 +89,7 @@ class MetadataFetcher(
         return try {
             client.newCall(req).execute().use { r ->
                 if (!r.isSuccessful) return null
-                val html = r.body?.string() ?: return Meta(null, null)
+                val html = r.body.string()
                 Meta(
                     title = extractOg(html, "og:title"),
                     imageUrl = extractOg(html, "og:image"),

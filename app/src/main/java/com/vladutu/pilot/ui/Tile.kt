@@ -13,9 +13,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Place
-import androidx.compose.material.icons.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -122,7 +122,7 @@ private fun FormBadge(form: Form, modifier: Modifier = Modifier) {
 }
 
 private fun formIcon(form: Form): ImageVector = when (form) {
-    Form.PLAYLIST -> Icons.Filled.PlaylistPlay
+    Form.PLAYLIST -> Icons.AutoMirrored.Filled.PlaylistPlay
     Form.SONG -> Icons.Filled.MusicNote
     Form.DESTINATION -> Icons.Filled.Place
     Form.RADIO -> Icons.Filled.Radio

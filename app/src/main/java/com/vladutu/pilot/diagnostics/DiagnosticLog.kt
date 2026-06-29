@@ -35,7 +35,7 @@ object DiagnosticLog {
         synchronized(writeLock) {
             rotateIfNeeded(f)
             file = f
-            appendRaw(f, "--- session start ${sessionFmt.get().format(Date())} ---\n")
+            appendRaw(f, "--- session start ${sessionFmt.get()!!.format(Date())} ---\n")
         }
     }
 
@@ -67,7 +67,7 @@ object DiagnosticLog {
         val f = file ?: return
         synchronized(writeLock) {
             try {
-                f.writeText("--- cleared ${sessionFmt.get().format(Date())} ---\n")
+                f.writeText("--- cleared ${sessionFmt.get()!!.format(Date())} ---\n")
             } catch (_: IOException) { /* nothing to do */ }
         }
     }
@@ -75,7 +75,7 @@ object DiagnosticLog {
     private fun write(level: Char, tag: String, msg: String, t: Throwable?) {
         val f = file ?: return
         val line = buildString {
-            append(tsFmt.get().format(Date()))
+            append(tsFmt.get()!!.format(Date()))
             append(' ').append(level).append('/').append(tag).append(": ").append(msg)
             if (t != null) {
                 append('\n')
@@ -98,7 +98,7 @@ object DiagnosticLog {
             val all = f.readBytes()
             val from = (all.size - ROTATE_KEEP_BYTES).coerceAtLeast(0)
             val tail = all.copyOfRange(from, all.size)
-            f.writeBytes("--- truncated ${sessionFmt.get().format(Date())} ---\n".toByteArray())
+            f.writeBytes("--- truncated ${sessionFmt.get()!!.format(Date())} ---\n".toByteArray())
             f.appendBytes(tail)
         } catch (_: IOException) { /* leave the file alone */ }
     }
