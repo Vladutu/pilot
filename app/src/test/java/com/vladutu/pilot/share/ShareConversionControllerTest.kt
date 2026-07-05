@@ -1,5 +1,6 @@
 package com.vladutu.pilot.share
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
@@ -10,6 +11,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ShareConversionControllerTest {
 
     private val wazeUrl = "https://ul.waze.com/ul?ll=44.33%2C23.77&navigate=yes"
