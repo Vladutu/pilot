@@ -89,6 +89,7 @@ class PilotApp : Application() {
         DestinationPipeline(
             converter = mapsToWazeConverter,
             inAppResolver = inAppMapsResolver,
+            soundCloudResolver = com.vladutu.pilot.share.SoundCloudResolver(client = httpClient),
             catalogStore = catalogStore,
             publisher = ntfyPublisher,
             metadataFetcher = metadataFetcher,

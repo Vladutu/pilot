@@ -10,6 +10,7 @@ import com.vladutu.pilot.net.NtfyPublisher
 import com.vladutu.pilot.share.ClassifiedShare
 import com.vladutu.pilot.share.MapsResolver
 import com.vladutu.pilot.share.MapsToWazeConverter
+import com.vladutu.pilot.share.SoundCloudResolver
 import com.vladutu.pilot.share.UrlClassifier
 import com.vladutu.pilot.share.WazeConversionException
 import com.vladutu.pilot.share.WazeUrlNormalizer
@@ -34,6 +35,9 @@ class DestinationPipeline(
     // Primary, on-device Maps→Waze resolver. Null disables it (the converter is then used directly),
     // which keeps the original behavior for tests that don't wire one. Production always supplies it.
     private val inAppResolver: MapsResolver? = null,
+    // Resolves SoundCloud short links → canonical URL + song/playlist form. Null in tests that
+    // don't exercise the SoundCloud branch (the fallback publish still works); production supplies it.
+    private val soundCloudResolver: SoundCloudResolver? = null,
     private val catalogStore: CatalogStore,
     private val publisher: NtfyPublisher,
     private val metadataFetcher: MetadataFetcher? = null,
@@ -59,6 +63,7 @@ class DestinationPipeline(
 
         val result = when (classified) {
             is ClassifiedShare.YtMusic -> ingestYtMusic(classified, manualTitle)
+            is ClassifiedShare.SoundCloudShare -> ingestSoundCloud(classified, manualTitle)
             is ClassifiedShare.MapsShare,
             is ClassifiedShare.WazeShare -> ingestDestination(classified, manualTitle)
         }
@@ -124,6 +129,71 @@ class DestinationPipeline(
         }
     }
 
+    private suspend fun ingestSoundCloud(
+        share: ClassifiedShare.SoundCloudShare,
+        manualTitle: String?,
+    ): IngestResult {
+        // Resolution failure → publish the short link as-is: the SoundCloud app on the
+        // car opens it fine; we only lose playlist detection (form defaults to song).
+        val resolution = soundCloudResolver?.resolve(share.rawUrl)
+        val url = resolution?.canonicalUrl ?: share.rawUrl
+        val form = resolution?.form ?: Form.SONG
+        DiagnosticLog.i(TAG, "soundcloud url=$url form=$form (resolved=${resolution != null})")
+
+        val provisionalTitle = manualTitle?.trim()?.takeIf { it.isNotBlank() }
+            ?: share.provisionalTitle?.takeIf { it.isNotBlank() }
+            ?: "Untitled ${url.takeLast(4)}"
+
+        val meta = try {
+            metadataFetcher?.fetchSoundCloud(url)
+        } catch (e: Exception) {
+            DiagnosticLog.w(TAG, "soundcloud metadata fetch failed", e)
+            null
+        }
+        val resolvedTitle = meta?.title?.takeIf { it.isNotBlank() } ?: provisionalTitle
+        val resolvedImageUrl = meta?.imageUrl?.takeIf { it.isNotBlank() }
+        DiagnosticLog.i(TAG, "soundcloud resolved title='$resolvedTitle' imageUrl=$resolvedImageUrl")
+
+        val imageFile = if (resolvedImageUrl != null && metadataFetcher != null) {
+            try { metadataFetcher.downloadImage(resolvedImageUrl, form, SoundCloudResolver.artworkId(url)) }
+            catch (e: Exception) { DiagnosticLog.w(TAG, "image download failed", e); null }
+        } else null
+
+        val entry = CatalogEntry(
+            form = form,
+            id = url,
+            title = resolvedTitle,
+            imagePath = imageFile?.absolutePath,
+            imageUrl = resolvedImageUrl,
+            cmd = "soundcloud",
+            savedAt = clock(),
+        )
+        val saveOk = try {
+            catalogStore.upsert(entry)
+            DiagnosticLog.i(TAG, "catalog upsert ok $form:$url")
+            true
+        } catch (e: Exception) {
+            DiagnosticLog.w(TAG, "catalog save failed", e)
+            false
+        }
+
+        processStateProbe?.let { DiagnosticLog.i(TAG, "pre-publish state: ${it()}") }
+        val publishOk = try {
+            publisher.publishSoundCloud(form, url, title = resolvedTitle, imageUrl = resolvedImageUrl)
+            true
+        } catch (e: NtfyPublishException) {
+            DiagnosticLog.w(TAG, "publish failed (NtfyPublishException)", e)
+            false
+        }
+
+        return when {
+            saveOk && publishOk -> IngestResult.Success(resolvedTitle)
+            saveOk && !publishOk -> IngestResult.PublishFailed(resolvedTitle)
+            !saveOk && publishOk -> IngestResult.SaveFailed(resolvedTitle)
+            else -> IngestResult.SaveAndPublishFailed(resolvedTitle)
+        }
+    }
+
     private suspend fun ingestDestination(
         classified: ClassifiedShare,
         manualTitle: String?,
@@ -167,6 +237,7 @@ class DestinationPipeline(
                 }
             }
             is ClassifiedShare.YtMusic -> error("unreachable")
+            is ClassifiedShare.SoundCloudShare -> error("unreachable")
         }
         DiagnosticLog.i(TAG, "destination wazeUrl=$wazeUrl")
 

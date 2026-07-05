@@ -57,6 +57,23 @@ class NtfyPublisherTest {
         assertTrue(!body.has("imageUrl") || body.isNull("imageUrl"))
     }
 
+    @Test fun `publishSoundCloud posts soundcloud cmd with url passthrough`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200))
+        publisher.publishSoundCloud(
+            Form.PLAYLIST,
+            url = "https://soundcloud.com/sc-playlists-eunon/sets/dance-energy",
+            title = "Dance Energy by Discovery Playlists",
+            imageUrl = "https://i1.sndcdn.com/x.jpg",
+        )
+        val body = JSONObject(server.takeRequest().body.readUtf8())
+        assertEquals(3, body.getInt("v"))
+        assertEquals("soundcloud", body.getString("cmd"))
+        assertEquals("playlist", body.getString("form"))
+        assertEquals("https://soundcloud.com/sc-playlists-eunon/sets/dance-energy", body.getString("url"))
+        assertEquals("Dance Energy by Discovery Playlists", body.getString("title"))
+        assertEquals("https://i1.sndcdn.com/x.jpg", body.getString("imageUrl"))
+    }
+
     @Test fun `publishWaze sends destination envelope`() = runTest {
         server.enqueue(MockResponse().setResponseCode(200))
         publisher.publishWaze(url = "https://ul.waze.com/ul?ll=1,2", title = "Home")

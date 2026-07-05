@@ -36,4 +36,13 @@ sealed interface ClassifiedShare {
         val url: String,
         override val provisionalTitle: String?,
     ) : ClassifiedShare
+
+    /**
+     * A SoundCloud URL (canonical, or an on.soundcloud.com short link that still
+     * needs resolution). Song/playlist classification happens in [SoundCloudResolver].
+     */
+    data class SoundCloudShare(
+        val rawUrl: String,
+        override val provisionalTitle: String?,
+    ) : ClassifiedShare
 }

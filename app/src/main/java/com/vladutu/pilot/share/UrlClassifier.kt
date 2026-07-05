@@ -8,6 +8,8 @@ object UrlClassifier {
     private val YT_HOSTS = setOf("music.youtube.com", "www.youtube.com", "youtube.com", "m.youtube.com", "youtu.be")
     private val MAPS_HOSTS = setOf("maps.google.com", "www.google.com", "google.com", "goo.gl", "maps.app.goo.gl")
     private val WAZE_HOSTS = setOf("ul.waze.com", "waze.com", "www.waze.com")
+    private val SOUNDCLOUD_HOSTS =
+        setOf("soundcloud.com", "www.soundcloud.com", "m.soundcloud.com", "on.soundcloud.com", "snd.sc")
 
     fun classifyUrl(text: String, subject: String?): ClassifiedShare? {
         val match = URL_REGEX.find(text) ?: return null
@@ -35,6 +37,15 @@ object UrlClassifier {
             return ClassifiedShare.MapsShare(rawUrl = urlString, provisionalTitle = provisionalTitle)
         }
 
+        // SoundCloud: canonical or short link; resolution + song/playlist split happen later
+        // in SoundCloudResolver (short links need a network hop; this classifier stays pure).
+        if (host in SOUNDCLOUD_HOSTS) {
+            return ClassifiedShare.SoundCloudShare(
+                rawUrl = urlString,
+                provisionalTitle = provisionalTitle?.let(::stripSoundCloudBoilerplate),
+            )
+        }
+
         // YT Music: existing flow, unchanged.
         if (host !in YT_HOSTS) return null
         val query = (parsed.rawQuery ?: "").parseQuery()
@@ -58,6 +69,16 @@ object UrlClassifier {
         val text = intent.getStringExtra(Intent.EXTRA_TEXT) ?: return null
         val subject = intent.getStringExtra(Intent.EXTRA_SUBJECT)
         return classifyUrl(text = text, subject = subject)
+    }
+
+    /** "Listen to X, a playlist by Y on #SoundCloud" → "X by Y". Best-effort, English-only; oEmbed overrides it. */
+    private fun stripSoundCloudBoilerplate(title: String): String {
+        val cleaned = title.trim()
+            .removePrefix("Listen to ")
+            .removeSuffix(" on #SoundCloud")
+            .replace(", a playlist by ", " by ")
+            .trim()
+        return cleaned.ifBlank { title }
     }
 
     private fun String.parseQuery(): Map<String, String> =

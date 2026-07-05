@@ -9,6 +9,8 @@ import com.vladutu.pilot.share.InAppMapsToWazeResolver
 import com.vladutu.pilot.share.MapsResolution
 import com.vladutu.pilot.share.MapsResolver
 import com.vladutu.pilot.share.MapsToWazeConverter
+import com.vladutu.pilot.share.SoundCloudResolution
+import com.vladutu.pilot.share.SoundCloudResolver
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
@@ -42,8 +44,9 @@ class DestinationPipelineTest {
         converterServer.shutdown()
     }
 
-    private fun newPipeline(): DestinationPipeline = DestinationPipeline(
+    private fun newPipeline(scResolver: SoundCloudResolver? = null): DestinationPipeline = DestinationPipeline(
         converter = MapsToWazeConverter(OkHttpClient(), converterServer.url("/").toString()),
+        soundCloudResolver = scResolver,
         catalogStore = catalogStore,
         publisher = publisher,
         clock = { 1_700_000_000_000L },
@@ -441,6 +444,62 @@ class DestinationPipelineTest {
         }
     }
 
+    // --- SoundCloud ---
+
+    @Test
+    fun ingest_soundcloudShortLink_resolvesSavesWithCmdMarkerAndPublishes() = runBlocking {
+        val resolution = SoundCloudResolution("https://soundcloud.com/a/sets/b", Form.PLAYLIST)
+
+        val result = newPipeline(FakeSoundCloudResolver(resolution)).ingest(
+            urlText = "Listen to B, a playlist by A on #SoundCloud\nhttps://on.soundcloud.com/xyz",
+            manualTitle = null,
+            subject = null,
+        )
+
+        assertTrue("expected Success, got $result", result is IngestResult.Success)
+        // No metadataFetcher wired → the cleaned provisional title is used.
+        assertEquals("B by A", (result as IngestResult.Success).title)
+        assertEquals(1, savedEntries.size)
+        assertEquals(Form.PLAYLIST, savedEntries[0].form)
+        assertEquals("https://soundcloud.com/a/sets/b", savedEntries[0].id)
+        assertEquals("soundcloud", savedEntries[0].cmd)
+        assertEquals(
+            listOf(Triple(Form.PLAYLIST, "https://soundcloud.com/a/sets/b", "B by A")),
+            publisher.publishedSoundCloud,
+        )
+    }
+
+    @Test
+    fun ingest_soundcloudResolutionFailure_fallsBackToShortUrlAsSong() = runBlocking {
+        val result = newPipeline(FakeSoundCloudResolver(null)).ingest(
+            urlText = "https://on.soundcloud.com/xyz",
+            manualTitle = null,
+            subject = null,
+        )
+
+        assertTrue("expected Success, got $result", result is IngestResult.Success)
+        assertEquals(1, savedEntries.size)
+        assertEquals(Form.SONG, savedEntries[0].form)
+        assertEquals("https://on.soundcloud.com/xyz", savedEntries[0].id)
+        assertEquals("soundcloud", savedEntries[0].cmd)
+        assertEquals(Form.SONG, publisher.publishedSoundCloud.single().first)
+        assertEquals("https://on.soundcloud.com/xyz", publisher.publishedSoundCloud.single().second)
+    }
+
+    @Test
+    fun ingest_soundcloudCanonicalUrl_normalizesWithoutNetwork() = runBlocking {
+        // Real resolver: canonical URLs never touch the network, so no MockWebServer needed.
+        val result = newPipeline(SoundCloudResolver(OkHttpClient())).ingest(
+            urlText = "https://soundcloud.com/the-real-tibo/la-pola-gola-life?utm_source=clipboard&utm_medium=text",
+            manualTitle = null,
+            subject = null,
+        )
+
+        assertTrue("expected Success, got $result", result is IngestResult.Success)
+        assertEquals("https://soundcloud.com/the-real-tibo/la-pola-gola-life", savedEntries[0].id)
+        assertEquals(Form.SONG, savedEntries[0].form)
+    }
+
     private class FakePublisher : NtfyPublisher(
         client = OkHttpClient(),
         base = "http://fake",
@@ -448,6 +507,7 @@ class DestinationPipelineTest {
     ) {
         val publishedWaze = mutableListOf<String>()
         val publishedYtMusic = mutableListOf<Pair<Form, String>>()
+        val publishedSoundCloud = mutableListOf<Triple<Form, String, String?>>()
         var failNextPublish = false
 
         override suspend fun publishWaze(url: String, title: String?) {
@@ -465,5 +525,19 @@ class DestinationPipelineTest {
             }
             publishedYtMusic.add(form to id)
         }
+
+        override suspend fun publishSoundCloud(form: Form, url: String, title: String?, imageUrl: String?) {
+            if (failNextPublish) {
+                failNextPublish = false
+                throw NtfyPublishException("simulated publish failure")
+            }
+            publishedSoundCloud.add(Triple(form, url, title))
+        }
+    }
+
+    private class FakeSoundCloudResolver(
+        private val result: SoundCloudResolution?,
+    ) : SoundCloudResolver(OkHttpClient()) {
+        override suspend fun resolve(rawUrl: String, shortHostOverride: String?): SoundCloudResolution? = result
     }
 }

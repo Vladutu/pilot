@@ -37,6 +37,14 @@ open class NtfyPublisher(
         )
     }
 
+    /** SoundCloud track/playlist. [url] is the canonical soundcloud.com URL (or the short link on resolver fallback). */
+    open suspend fun publishSoundCloud(form: Form, url: String, title: String?, imageUrl: String?) {
+        require(form == Form.PLAYLIST || form == Form.SONG) {
+            "publishSoundCloud only accepts PLAYLIST or SONG, got $form"
+        }
+        postEnvelope(cmd = "soundcloud", formWire = form.wire, url = url, title = title, imageUrl = imageUrl)
+    }
+
     open suspend fun publishWaze(url: String, title: String?) {
         postEnvelope(
             cmd = "waze",

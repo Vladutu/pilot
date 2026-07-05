@@ -33,6 +33,7 @@ class MetadataFetcherTest {
             cacheDir = tmp.root,
             ytMusicBase = server.url("").toString().trimEnd('/'),
             oembedBase = server.url("oembed").toString(),
+            soundCloudOembedBase = server.url("sc-oembed").toString(),
         )
     }
 
@@ -143,5 +144,34 @@ class MetadataFetcherTest {
         // No stray .tmp left behind
         val tmpFiles = file.parentFile!!.listFiles { _, n -> n.endsWith(".tmp") }
         assertEquals(0, tmpFiles?.size ?: 0)
+    }
+
+    // --- SoundCloud oEmbed ---
+
+    @Test
+    fun `fetchSoundCloud parses title and thumbnail`() = runTest {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"title":"La Pola Gola Life by DJ TiBO","thumbnail_url":"https://i1.sndcdn.com/artworks-x-t500x500.jpg","author_name":"DJ TiBO"}""",
+            ),
+        )
+        val meta = fetcher.fetchSoundCloud("https://soundcloud.com/the-real-tibo/la-pola-gola-life")
+        assertEquals("La Pola Gola Life by DJ TiBO", meta?.title)
+        assertEquals("https://i1.sndcdn.com/artworks-x-t500x500.jpg", meta?.imageUrl)
+    }
+
+    @Test
+    fun `fetchSoundCloud passes the target url to the oembed endpoint`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"title":"T"}"""))
+        fetcher.fetchSoundCloud("https://soundcloud.com/a/b")
+        val req = server.takeRequest()
+        assertTrue(req.path!!.contains("url=https%3A%2F%2Fsoundcloud.com%2Fa%2Fb"))
+        assertTrue(req.path!!.contains("format=json"))
+    }
+
+    @Test
+    fun `fetchSoundCloud returns null on http error`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(404))
+        assertNull(fetcher.fetchSoundCloud("https://soundcloud.com/a/b"))
     }
 }

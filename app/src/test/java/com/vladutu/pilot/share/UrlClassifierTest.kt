@@ -186,4 +186,64 @@ class UrlClassifierTest {
         )
         assertNull(result)
     }
+
+    // --- SoundCloud ---
+
+    @Test
+    fun `soundcloud canonical track url classifies as SoundCloudShare`() {
+        val r = UrlClassifier.classifyUrl(
+            text = "https://soundcloud.com/the-real-tibo/la-pola-gola-life",
+            subject = null,
+        )
+        assertTrue(r is ClassifiedShare.SoundCloudShare)
+        assertEquals(
+            "https://soundcloud.com/the-real-tibo/la-pola-gola-life",
+            (r as ClassifiedShare.SoundCloudShare).rawUrl,
+        )
+    }
+
+    @Test
+    fun `soundcloud desktop url with utm params classifies`() {
+        val r = UrlClassifier.classifyUrl(
+            text = "https://soundcloud.com/the-real-tibo/la-pola-gola-life?utm_source=clipboard&utm_medium=text&utm_campaign=social_sharing",
+            subject = null,
+        )
+        assertTrue(r is ClassifiedShare.SoundCloudShare)
+    }
+
+    @Test
+    fun `soundcloud mobile share text keeps short url and cleans title`() {
+        val r = UrlClassifier.classifyUrl(
+            text = "Listen to La Pola Gola Life by DJ TiBO on #SoundCloud\nhttps://on.soundcloud.com/LgcLHMoSYl1nuCDDai",
+            subject = null,
+        )
+        assertTrue(r is ClassifiedShare.SoundCloudShare)
+        val sc = r as ClassifiedShare.SoundCloudShare
+        assertEquals("https://on.soundcloud.com/LgcLHMoSYl1nuCDDai", sc.rawUrl)
+        assertEquals("La Pola Gola Life by DJ TiBO", sc.provisionalTitle)
+    }
+
+    @Test
+    fun `soundcloud mobile playlist share text cleans playlist boilerplate`() {
+        val r = UrlClassifier.classifyUrl(
+            text = "Listen to Dance Energy, a playlist by Discovery Playlists on #SoundCloud\nhttps://on.soundcloud.com/af6PSliTxkcHafPREy",
+            subject = null,
+        )
+        assertEquals(
+            "Dance Energy by Discovery Playlists",
+            (r as ClassifiedShare.SoundCloudShare).provisionalTitle,
+        )
+    }
+
+    @Test
+    fun `soundcloud m and www hosts classify`() {
+        assertTrue(
+            UrlClassifier.classifyUrl("https://m.soundcloud.com/a/b", null)
+                is ClassifiedShare.SoundCloudShare,
+        )
+        assertTrue(
+            UrlClassifier.classifyUrl("https://www.soundcloud.com/a/b", null)
+                is ClassifiedShare.SoundCloudShare,
+        )
+    }
 }

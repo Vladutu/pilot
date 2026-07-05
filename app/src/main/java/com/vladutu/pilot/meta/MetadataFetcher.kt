@@ -17,6 +17,7 @@ class MetadataFetcher(
     private val cacheDir: File,
     private val ytMusicBase: String = "https://music.youtube.com",
     private val oembedBase: String = "https://www.youtube.com/oembed",
+    private val soundCloudOembedBase: String = "https://soundcloud.com/oembed",
 ) {
     suspend fun fetch(share: ClassifiedShare.YtMusic): Meta? = withContext(Dispatchers.IO) {
         when (share) {
@@ -59,6 +60,21 @@ class MetadataFetcher(
             imagePath = imageFile?.absolutePath,
             imageUrl = meta.imageUrl,
         )
+    }
+
+    /** SoundCloud oEmbed (no API key). Accepts canonical AND on.soundcloud.com short URLs. */
+    suspend fun fetchSoundCloud(url: String): Meta? = withContext(Dispatchers.IO) {
+        val oembedUrl = "$soundCloudOembedBase?url=${java.net.URLEncoder.encode(url, "UTF-8")}&format=json"
+        runCatching {
+            client.newCall(Request.Builder().url(oembedUrl).build()).execute().use { r ->
+                if (!r.isSuccessful) return@runCatching null
+                val json = JSONObject(r.body.string())
+                Meta(
+                    title = json.optString("title").takeIf { it.isNotBlank() },
+                    imageUrl = json.optString("thumbnail_url").takeIf { it.isNotBlank() },
+                )
+            }
+        }.getOrNull()
     }
 
     private fun fetchSong(videoId: String): Meta? {
