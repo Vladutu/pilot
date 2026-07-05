@@ -5,6 +5,14 @@ released version tag and is built from the commits between that tag and the
 previous one. This project loosely follows [Keep a Changelog](https://keepachangelog.com)
 and [Semantic Versioning](https://semver.org).
 
+## [0.10.0] - 2026-07-05
+
+### Added
+- Share SoundCloud tracks and playlists to the car
+
+### Build
+- Bump gradle-wrapper from 9.6.0 to 9.6.1 (#16)
+
 ## [0.9.2] - 2026-06-29
 
 ### Changed
@@ -136,6 +144,7 @@ Initial released version. Highlights of the work leading up to it:
 ### Build
 - Release automation — wrapper, signing, `release.sh` (pushes branch + tag), docs.
 
+[0.10.0]: https://github.com/Vladutu/pilot/compare/v0.9.2...v0.10.0
 [0.9.2]: https://github.com/Vladutu/pilot/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/Vladutu/pilot/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/Vladutu/pilot/compare/v0.8.0...v0.9.0
