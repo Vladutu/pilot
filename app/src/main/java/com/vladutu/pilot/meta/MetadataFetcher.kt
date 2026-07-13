@@ -16,6 +16,7 @@ class MetadataFetcher(
     private val client: OkHttpClient,
     private val cacheDir: File,
     private val ytMusicBase: String = "https://music.youtube.com",
+    private val youTubeBase: String = "https://www.youtube.com",
     private val oembedBase: String = "https://www.youtube.com/oembed",
     private val soundCloudOembedBase: String = "https://soundcloud.com/oembed",
 ) {
@@ -23,6 +24,15 @@ class MetadataFetcher(
         when (share) {
             is ClassifiedShare.Song -> fetchSong(share.id)
             is ClassifiedShare.Playlist -> scrapeOg("$ytMusicBase/playlist?list=${share.id}")
+        }
+    }
+
+    /** Plain-YouTube video/playlist. Same oEmbed endpoint as YT Music songs; only the watch host differs. */
+    suspend fun fetchYouTube(share: ClassifiedShare.YouTubeShare): Meta? = withContext(Dispatchers.IO) {
+        when (share.form) {
+            Form.SONG -> fetchSong(share.id, watchBase = youTubeBase)
+            Form.PLAYLIST -> scrapeOg("$youTubeBase/playlist?list=${share.id}")
+            else -> null
         }
     }
 
@@ -77,8 +87,8 @@ class MetadataFetcher(
         }.getOrNull()
     }
 
-    private fun fetchSong(videoId: String): Meta? {
-        val oembedUrl = "$oembedBase?url=$ytMusicBase/watch?v=$videoId&format=json"
+    private fun fetchSong(videoId: String, watchBase: String = ytMusicBase): Meta? {
+        val oembedUrl = "$oembedBase?url=$watchBase/watch?v=$videoId&format=json"
         val oembed = runCatching {
             val resp = client.newCall(Request.Builder().url(oembedUrl).build()).execute()
             resp.use { r ->
@@ -92,7 +102,7 @@ class MetadataFetcher(
             }
         }.getOrNull()
         if (oembed?.title != null || oembed?.imageUrl != null) return oembed
-        return scrapeOg("$ytMusicBase/watch?v=$videoId")
+        return scrapeOg("$watchBase/watch?v=$videoId")
     }
 
     private fun scrapeOg(url: String): Meta? {

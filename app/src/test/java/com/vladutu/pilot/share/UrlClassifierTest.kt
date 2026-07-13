@@ -1,5 +1,6 @@
 package com.vladutu.pilot.share
 
+import com.vladutu.pilot.catalog.Form
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -38,42 +39,71 @@ class UrlClassifierTest {
     }
 
     @Test
-    fun `youtube_com watch URL also classifies as Song`() {
+    fun `youtube_com watch URL classifies as YouTubeShare song`() {
         val r = UrlClassifier.classifyUrl(
             text = "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             subject = null,
         )
-        assertTrue(r is ClassifiedShare.Song)
-        assertEquals("dQw4w9WgXcQ", (r as ClassifiedShare.Song).id)
+        assertTrue(r is ClassifiedShare.YouTubeShare)
+        val yt = r as ClassifiedShare.YouTubeShare
+        assertEquals("dQw4w9WgXcQ", yt.id)
+        assertEquals(Form.SONG, yt.form)
     }
 
     @Test
-    fun `m_youtube watch URL classifies as Song`() {
+    fun `m_youtube watch URL classifies as YouTubeShare song`() {
         val r = UrlClassifier.classifyUrl(
             text = "https://m.youtube.com/watch?v=dQw4w9WgXcQ",
             subject = null,
         )
-        assertTrue(r is ClassifiedShare.Song)
+        assertTrue(r is ClassifiedShare.YouTubeShare)
+        assertEquals(Form.SONG, (r as ClassifiedShare.YouTubeShare).form)
     }
 
     @Test
-    fun `youtu_be short URL classifies as Song`() {
+    fun `youtu_be short URL classifies as YouTubeShare song`() {
         val r = UrlClassifier.classifyUrl(
             text = "https://youtu.be/dQw4w9WgXcQ",
             subject = null,
         )
-        assertTrue(r is ClassifiedShare.Song)
-        assertEquals("dQw4w9WgXcQ", (r as ClassifiedShare.Song).id)
+        assertTrue(r is ClassifiedShare.YouTubeShare)
+        val yt = r as ClassifiedShare.YouTubeShare
+        assertEquals("dQw4w9WgXcQ", yt.id)
+        assertEquals(Form.SONG, yt.form)
     }
 
     @Test
-    fun `youtu_be short URL with query string classifies as Song`() {
+    fun `youtu_be short URL with query string classifies as YouTubeShare song`() {
         val r = UrlClassifier.classifyUrl(
             text = "https://youtu.be/dQw4w9WgXcQ?si=abcdef",
             subject = null,
         )
-        assertTrue(r is ClassifiedShare.Song)
-        assertEquals("dQw4w9WgXcQ", (r as ClassifiedShare.Song).id)
+        assertTrue(r is ClassifiedShare.YouTubeShare)
+        assertEquals("dQw4w9WgXcQ", (r as ClassifiedShare.YouTubeShare).id)
+    }
+
+    @Test
+    fun `youtube_com playlist URL classifies as YouTubeShare playlist`() {
+        val r = UrlClassifier.classifyUrl(
+            text = "https://www.youtube.com/playlist?list=PLabc",
+            subject = null,
+        )
+        assertTrue(r is ClassifiedShare.YouTubeShare)
+        val yt = r as ClassifiedShare.YouTubeShare
+        assertEquals("PLabc", yt.id)
+        assertEquals(Form.PLAYLIST, yt.form)
+    }
+
+    @Test
+    fun `youtube_com shorts URL classifies as YouTubeShare song`() {
+        val r = UrlClassifier.classifyUrl(
+            text = "https://youtube.com/shorts/dQw4w9WgXcQ?si=abcdef",
+            subject = null,
+        )
+        assertTrue(r is ClassifiedShare.YouTubeShare)
+        val yt = r as ClassifiedShare.YouTubeShare
+        assertEquals("dQw4w9WgXcQ", yt.id)
+        assertEquals(Form.SONG, yt.form)
     }
 
     @Test

@@ -12,7 +12,8 @@ data class CatalogEntry(
     val googleMapsUrl: String? = null,
     /** For RADIO: the raw stream URL (id holds the stationUuid, not the URL). Null for other forms. */
     val url: String? = null,
-    /** Publish routing override: "soundcloud" for SoundCloud entries (id holds the canonical URL). Null = legacy, derived from form. */
+    /** Publish routing override: "soundcloud" for SoundCloud entries (id holds the canonical URL),
+     *  "youtube" for plain-YouTube entries (id holds the video/playlist id). Null = legacy, derived from form. */
     val cmd: String? = null,
     val savedAt: Long,
 )

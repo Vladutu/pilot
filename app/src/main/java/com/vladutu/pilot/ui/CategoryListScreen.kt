@@ -156,12 +156,17 @@ fun CategoryListScreen(
                                                     title = entry.title,
                                                     imageUrl = entry.imageUrl,
                                                 )
-                                                Form.PLAYLIST, Form.SONG ->
-                                                    if (entry.cmd == "soundcloud") publisher.publishSoundCloud(
+                                                Form.PLAYLIST, Form.SONG -> when (entry.cmd) {
+                                                    "soundcloud" -> publisher.publishSoundCloud(
                                                         entry.form, url = entry.id, title = entry.title, imageUrl = entry.imageUrl,
-                                                    ) else publisher.publishYtMusic(
+                                                    )
+                                                    "youtube" -> publisher.publishYouTube(
                                                         entry.form, entry.id, title = entry.title, imageUrl = entry.imageUrl,
                                                     )
+                                                    else -> publisher.publishYtMusic(
+                                                        entry.form, entry.id, title = entry.title, imageUrl = entry.imageUrl,
+                                                    )
+                                                }
                                             }
                                             publishStatus.markOk()
                                             store.touch(entry.form, entry.id)

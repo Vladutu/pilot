@@ -25,6 +25,16 @@ sealed interface ClassifiedShare {
         override val form: Form get() = Form.SONG
     }
 
+    /**
+     * A plain-YouTube video or playlist (youtube.com / youtu.be — NOT music.youtube.com).
+     * Opens the YouTube app on the car, not YT Music.
+     */
+    data class YouTubeShare(
+        val id: String,
+        val form: Form,
+        override val provisionalTitle: String?,
+    ) : ClassifiedShare
+
     /** A Google Maps URL that still needs conversion before publish. */
     data class MapsShare(
         val rawUrl: String,

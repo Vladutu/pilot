@@ -1,11 +1,13 @@
 package com.vladutu.pilot.share
 
 import android.content.Intent
+import com.vladutu.pilot.catalog.Form
 
 object UrlClassifier {
 
     private val URL_REGEX = Regex("""https?://\S+""")
-    private val YT_HOSTS = setOf("music.youtube.com", "www.youtube.com", "youtube.com", "m.youtube.com", "youtu.be")
+    private const val YT_MUSIC_HOST = "music.youtube.com"
+    private val YOUTUBE_HOSTS = setOf("www.youtube.com", "youtube.com", "m.youtube.com")
     private val MAPS_HOSTS = setOf("maps.google.com", "www.google.com", "google.com", "goo.gl", "maps.app.goo.gl")
     private val WAZE_HOSTS = setOf("ul.waze.com", "waze.com", "www.waze.com")
     private val SOUNDCLOUD_HOSTS =
@@ -46,15 +48,33 @@ object UrlClassifier {
             )
         }
 
+        // Plain YouTube (the video app, not YT Music): the YouTube app shares youtu.be
+        // short links; browser copies use youtube.com. These open YouTube on the car.
+        if (host == "youtu.be") {
+            val id = path.trimStart('/').substringBefore('/').takeIf { it.isNotBlank() } ?: return null
+            return ClassifiedShare.YouTubeShare(id = id, form = Form.SONG, provisionalTitle = provisionalTitle)
+        }
+        if (host in YOUTUBE_HOSTS) {
+            val query = (parsed.rawQuery ?: "").parseQuery()
+            return when {
+                path.endsWith("/watch") && query["v"] != null ->
+                    ClassifiedShare.YouTubeShare(query.getValue("v"), Form.SONG, provisionalTitle)
+                path.endsWith("/playlist") && query["list"] != null ->
+                    ClassifiedShare.YouTubeShare(query.getValue("list"), Form.PLAYLIST, provisionalTitle)
+                path.startsWith("/shorts/") -> {
+                    val id = path.removePrefix("/shorts/").substringBefore('/').takeIf { it.isNotBlank() }
+                        ?: return null
+                    ClassifiedShare.YouTubeShare(id, Form.SONG, provisionalTitle)
+                }
+                else -> null
+            }
+        }
+
         // YT Music: existing flow, unchanged.
-        if (host !in YT_HOSTS) return null
+        if (host != YT_MUSIC_HOST) return null
         val query = (parsed.rawQuery ?: "").parseQuery()
 
         return when {
-            host == "youtu.be" -> {
-                val id = path.trimStart('/').substringBefore('/').takeIf { it.isNotBlank() } ?: return null
-                ClassifiedShare.Song(id = id, provisionalTitle = provisionalTitle)
-            }
             path.endsWith("/watch") && query["v"] != null -> {
                 ClassifiedShare.Song(id = query.getValue("v"), provisionalTitle = provisionalTitle)
             }

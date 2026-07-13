@@ -37,6 +37,20 @@ open class NtfyPublisher(
         )
     }
 
+    /** Plain-YouTube video/playlist — opens the YouTube app on the car, not YT Music. */
+    open suspend fun publishYouTube(form: Form, id: String, title: String?, imageUrl: String?) {
+        require(form == Form.PLAYLIST || form == Form.SONG) {
+            "publishYouTube only accepts PLAYLIST or SONG, got $form"
+        }
+        postEnvelope(
+            cmd = "youtube",
+            formWire = form.wire,
+            url = youTubeUrl(form, id),
+            title = title,
+            imageUrl = imageUrl,
+        )
+    }
+
     /** SoundCloud track/playlist. [url] is the canonical soundcloud.com URL (or the short link on resolver fallback). */
     open suspend fun publishSoundCloud(form: Form, url: String, title: String?, imageUrl: String?) {
         require(form == Form.PLAYLIST || form == Form.SONG) {
@@ -175,6 +189,15 @@ open class NtfyPublisher(
             )
             Form.RADIO -> throw IllegalArgumentException(
                 "RADIO is not a YouTube Music form; use publishRadio",
+            )
+        }
+
+        /** Normalized www.youtube.com URL — the exact prefix Copilot's allow-list trusts for cmd=youtube. */
+        fun youTubeUrl(form: Form, id: String): String = when (form) {
+            Form.PLAYLIST -> "https://www.youtube.com/playlist?list=$id"
+            Form.SONG -> "https://www.youtube.com/watch?v=$id"
+            Form.DESTINATION, Form.RADIO -> throw IllegalArgumentException(
+                "$form is not a YouTube form",
             )
         }
     }

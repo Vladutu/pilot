@@ -145,6 +145,40 @@ class DestinationPipelineTest {
     }
 
     @Test
+    fun ingest_youtubeWatchUrl_savesWithYoutubeCmdAndPublishesYouTube() = runBlocking {
+        val result = newPipeline().ingest(
+            urlText = "https://www.youtube.com/watch?v=abc123",
+            manualTitle = "My Video",
+            subject = null,
+        )
+
+        assertTrue("expected Success, got $result", result is IngestResult.Success)
+        assertEquals("My Video", (result as IngestResult.Success).title)
+        assertEquals(1, savedEntries.size)
+        assertEquals(Form.SONG, savedEntries[0].form)
+        assertEquals("abc123", savedEntries[0].id)
+        assertEquals("youtube", savedEntries[0].cmd)
+        assertEquals(listOf(Form.SONG to "abc123"), publisher.publishedYouTube)
+        assertTrue(publisher.publishedYtMusic.isEmpty())
+    }
+
+    @Test
+    fun ingest_youtubePlaylistUrl_savesAndPublishesYouTube() = runBlocking {
+        val result = newPipeline().ingest(
+            urlText = "https://www.youtube.com/playlist?list=PL123",
+            manualTitle = null,
+            subject = "Talks",
+        )
+
+        assertTrue(result is IngestResult.Success)
+        assertEquals(1, savedEntries.size)
+        assertEquals(Form.PLAYLIST, savedEntries[0].form)
+        assertEquals("PL123", savedEntries[0].id)
+        assertEquals("youtube", savedEntries[0].cmd)
+        assertEquals(listOf(Form.PLAYLIST to "PL123"), publisher.publishedYouTube)
+    }
+
+    @Test
     fun ingest_ytMusicNoTitleAnywhere_fallsBackToUntitledPlusId() = runBlocking {
         val result = newPipeline().ingest(
             urlText = "https://music.youtube.com/watch?v=xyz",
@@ -507,6 +541,7 @@ class DestinationPipelineTest {
     ) {
         val publishedWaze = mutableListOf<String>()
         val publishedYtMusic = mutableListOf<Pair<Form, String>>()
+        val publishedYouTube = mutableListOf<Pair<Form, String>>()
         val publishedSoundCloud = mutableListOf<Triple<Form, String, String?>>()
         var failNextPublish = false
 
@@ -532,6 +567,14 @@ class DestinationPipelineTest {
                 throw NtfyPublishException("simulated publish failure")
             }
             publishedSoundCloud.add(Triple(form, url, title))
+        }
+
+        override suspend fun publishYouTube(form: Form, id: String, title: String?, imageUrl: String?) {
+            if (failNextPublish) {
+                failNextPublish = false
+                throw NtfyPublishException("simulated publish failure")
+            }
+            publishedYouTube.add(form to id)
         }
     }
 

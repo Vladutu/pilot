@@ -21,6 +21,7 @@ import java.net.URLDecoder
 /**
  * Orchestrates the share / manual-entry pipeline for every recognized link:
  *   - YT Music song/playlist → catalog upsert → publishYtMusic → fire-and-forget metadata refresh
+ *   - YouTube video/playlist → catalog upsert (cmd=youtube) → publishYouTube
  *   - Google Maps URL       → convert → catalog upsert → publishWaze
  *   - Waze URL              → normalize → catalog upsert → publishWaze
  *
@@ -63,6 +64,7 @@ class DestinationPipeline(
 
         val result = when (classified) {
             is ClassifiedShare.YtMusic -> ingestYtMusic(classified, manualTitle)
+            is ClassifiedShare.YouTubeShare -> ingestYouTube(classified, manualTitle)
             is ClassifiedShare.SoundCloudShare -> ingestSoundCloud(classified, manualTitle)
             is ClassifiedShare.MapsShare,
             is ClassifiedShare.WazeShare -> ingestDestination(classified, manualTitle)
@@ -125,6 +127,66 @@ class DestinationPipeline(
             saveOk && publishResult -> IngestResult.Success(resolvedTitle)
             saveOk && !publishResult -> IngestResult.PublishFailed(resolvedTitle)
             !saveOk && publishResult -> IngestResult.SaveFailed(resolvedTitle)
+            else -> IngestResult.SaveAndPublishFailed(resolvedTitle)
+        }
+    }
+
+    /** Plain-YouTube video/playlist: same shape as [ingestYtMusic], but the catalog entry
+     *  carries cmd="youtube" and the publish routes to the YouTube app on the car. */
+    private suspend fun ingestYouTube(
+        share: ClassifiedShare.YouTubeShare,
+        manualTitle: String?,
+    ): IngestResult {
+        val provisionalTitle = manualTitle?.trim()?.takeIf { it.isNotBlank() }
+            ?: share.provisionalTitle?.takeIf { it.isNotBlank() }
+            ?: "Untitled ${share.id}"
+
+        val meta = try {
+            metadataFetcher?.fetchYouTube(share)
+        } catch (e: Exception) {
+            DiagnosticLog.w(TAG, "youtube metadata fetch failed", e)
+            null
+        }
+        val resolvedTitle = meta?.title?.takeIf { it.isNotBlank() } ?: provisionalTitle
+        val resolvedImageUrl = meta?.imageUrl?.takeIf { it.isNotBlank() }
+        DiagnosticLog.i(TAG, "youtube resolved title='$resolvedTitle' imageUrl=$resolvedImageUrl")
+
+        val imageFile = if (resolvedImageUrl != null && metadataFetcher != null) {
+            try { metadataFetcher.downloadImage(resolvedImageUrl, share.form, share.id) }
+            catch (e: Exception) { DiagnosticLog.w(TAG, "image download failed", e); null }
+        } else null
+
+        val entry = CatalogEntry(
+            form = share.form,
+            id = share.id,
+            title = resolvedTitle,
+            imagePath = imageFile?.absolutePath,
+            imageUrl = resolvedImageUrl,
+            cmd = "youtube",
+            savedAt = clock(),
+        )
+        val saveOk = try {
+            catalogStore.upsert(entry)
+            DiagnosticLog.i(TAG, "catalog upsert ok ${share.form}:${share.id} (youtube)")
+            true
+        } catch (e: Exception) {
+            DiagnosticLog.w(TAG, "catalog save failed", e)
+            false
+        }
+
+        processStateProbe?.let { DiagnosticLog.i(TAG, "pre-publish state: ${it()}") }
+        val publishOk = try {
+            publisher.publishYouTube(share.form, share.id, title = resolvedTitle, imageUrl = resolvedImageUrl)
+            true
+        } catch (e: NtfyPublishException) {
+            DiagnosticLog.w(TAG, "publish failed (NtfyPublishException)", e)
+            false
+        }
+
+        return when {
+            saveOk && publishOk -> IngestResult.Success(resolvedTitle)
+            saveOk && !publishOk -> IngestResult.PublishFailed(resolvedTitle)
+            !saveOk && publishOk -> IngestResult.SaveFailed(resolvedTitle)
             else -> IngestResult.SaveAndPublishFailed(resolvedTitle)
         }
     }
@@ -237,6 +299,7 @@ class DestinationPipeline(
                 }
             }
             is ClassifiedShare.YtMusic -> error("unreachable")
+            is ClassifiedShare.YouTubeShare -> error("unreachable")
             is ClassifiedShare.SoundCloudShare -> error("unreachable")
         }
         DiagnosticLog.i(TAG, "destination wazeUrl=$wazeUrl")
